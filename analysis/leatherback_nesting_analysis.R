@@ -51,6 +51,25 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
 nest <- filter(nest_raw, !is.na(ID)) %>% select(-notes)
 
 
+#================================================================
+# MODELING
+#
+# Fit multivariate random walk state-space (MRWSS) models
+# to different response variables
+#================================================================
+
+# DOY of encounter
+mrwss_doy <- stan(file = here("analysis","MRWSS.stan"),
+                  data = list(N = nrow(nest), year = as.numeric(factor(nest$year)),
+                              turtle = as.numeric(factor(nest$name)), 
+                              y = nest$doy_encounter),
+                  pars = c("mu","sigma_omega","sigma_nu","tau","theta","x"),
+                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+
+print(mrwss_doy, pars = c("theta","x"), include = FALSE, probs = c(0.025, 0.5, 0.975))
+
+
+
 
 
 #================================================================
