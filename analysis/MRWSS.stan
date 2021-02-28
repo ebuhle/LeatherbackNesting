@@ -39,20 +39,20 @@ transformed parameters {
 
 model {
   // Priors
-  theta1 ~ normal(0,5);
-  mu ~ normal(0,3);
-  sigma_omega ~ student_t(3,0,2);
+  theta1 ~ normal(0,100);
+  mu ~ normal(0,10);
+  sigma_omega ~ student_t(3,0,10);
   omega_std ~ std_normal();       // implies omega ~ N(0, sigma_omega) 
-  sigma_nu ~ student_t(3,0,2);
+  sigma_nu ~ student_t(3,0,10);
   nu_std ~ std_normal();          // implies nu ~ N(0, sigma_nu)
-  tau ~ student_t(3,0,2);
+  tau ~ student_t(3,0,10);
   
   // Likelihood
-  y ~ lognormal(x, tau);
+  y ~ normal(x, tau);
 }
 
 generated quantities {
   vector[N] LL;  // pointwise log-likelihood
   
-  for(i in 1:N) LL[i] = lognormal_lpdf(y[i] | x, tau);
+  for(i in 1:N) LL[i] = normal_lpdf(y[i] | x, tau);
 }
