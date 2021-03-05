@@ -21,7 +21,6 @@ library(bayesplot)
 library(here)
 if(.Platform$OS.type == "windows") options(device = windows)
 options(mc.cores = parallel::detectCores(logical = FALSE) - 1)
-rstan_options(auto_write = TRUE)
 
 #================================================================
 # DATA
@@ -52,6 +51,9 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
 # Remove surveys without an ID'd female (for now)
 nest <- filter(nest_raw, !is.na(ID)) %>% select(-notes)
 
+# Subset of data without missing CCL_max
+ccl <- filter(nest, !is.na(CCL_max))
+
 
 #================================================================
 # MODELING
@@ -70,6 +72,17 @@ hrwss_doy <- stan(file = here("analysis","HRWSS.stan"),
                 control = list(adapt_delta = 0.95))
 
 print(hrwss_doy, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
+
+
+# Max curved carapace length
+hrwss_ccl <- stan(file = here("analysis","HRWSS.stan"),
+                  data = list(N = nrow(ccl), year = as.numeric(factor(ccl$year)),
+                              turtle = as.numeric(factor(ccl$name)), y = ccl$CCL_max),
+                  pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
+                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
+                  control = list(adapt_delta = 0.95))
+
+print(hrwss_ccl, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
 
 
 

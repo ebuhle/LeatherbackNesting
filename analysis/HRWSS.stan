@@ -45,11 +45,11 @@ model {
   // Priors
   alpha01 ~ normal(0,1);
   mu0 ~ normal(0,1);
-  sigma_alpha0 ~ student_t(3,0,1);
+  sigma_alpha0 ~ student_t(3,0,2);
   omega0_std ~ std_normal();        // implies omega ~ N(0, sigma_omega) 
-  sigma_theta0 ~ student_t(3,0,1);
+  sigma_theta0 ~ student_t(3,0,2);
   theta0_std ~ std_normal();        // implies theta ~ N(0, sigma_theta)
-  sigma0 ~ student_t(3,0,1);
+  sigma0 ~ student_t(3,0,2);
   
   // Likelihood
   z ~ normal(z_hat, sigma0);
