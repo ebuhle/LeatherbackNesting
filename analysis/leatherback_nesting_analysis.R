@@ -11,15 +11,17 @@
 # SETUP
 #================================================================
 
-if(.Platform$OS.type == "windows") options(device = windows)
-options(mc.cores = parallel::detectCores(logical = FALSE) - 1)
 library(dplyr)
 library(readxl)
 library(lubridate)
 library(matrixStats)
 library(rstan)
 library(shinystan)
+library(bayesplot)
 library(here)
+if(.Platform$OS.type == "windows") options(device = windows)
+options(mc.cores = parallel::detectCores(logical = FALSE) - 1)
+rstan_options(auto_write = TRUE)
 
 #================================================================
 # DATA
