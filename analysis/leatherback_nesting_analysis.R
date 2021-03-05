@@ -54,20 +54,20 @@ nest <- filter(nest_raw, !is.na(ID)) %>% select(-notes)
 #================================================================
 # MODELING
 #
-# Fit multivariate random walk state-space (MRWSS) models
+# Fit hierarchical random walk state-space (HRWSS) models
 # to different response variables
 #================================================================
 
 # DOY of encounter
-mrwss_doy <- stan(file = here("analysis","MRWSS2.stan"),
+hrwss_doy <- stan(file = here("analysis","HRWSS.stan"),
                   data = list(N = nrow(nest), year = as.numeric(factor(nest$year)),
                               turtle = as.numeric(factor(nest$name)), 
                               y = nest$doy_encounter),
-                  # pars = c("mu","sigma_omega","sigma_nu","tau","theta","x","LL"),
-                  pars = c("mu","sigma","rho","tau","x","LL"),
-                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+                  pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
+                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
+                control = list(adapt_delta = 0.95))
 
-print(mrwss_doy, pars = c("theta","x"), include = FALSE, probs = c(0.025, 0.5, 0.975))
+print(hrwss_doy, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
 
 
 
