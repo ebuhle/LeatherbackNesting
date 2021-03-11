@@ -16,6 +16,7 @@ library(readxl)
 library(lubridate)
 library(matrixStats)
 library(rstan)
+library(brms)
 library(shinystan)
 library(bayesplot)
 library(here)
@@ -49,10 +50,31 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
   arrange(name, year, date_encounter)
 
 # Remove surveys without an ID'd female (for now)
-nest <- filter(nest_raw, !is.na(ID)) %>% select(-notes)
+# Restrict to first encounter in a given year
+nest <- nest_raw %>% group_by(name, year) %>% 
+  filter(date_encounter == min(date_encounter) & !is.na(ID)) %>% 
+  slice(1) %>% ungroup() %>% as.data.frame() %>% select(-notes)
 
-# Subset of data without missing CCL_max
-ccl <- filter(nest, !is.na(CCL_max))
+# # Subset of data without missing CCL_max
+# ccl <- filter(nest, !is.na(CCL_max))
+
+
+#================================================================
+# MODELING
+#
+# Fit hierarchical models to different response variables
+# using brms
+#================================================================
+
+# DOY of encounter
+brm_doy <- brm(doy_encounter ~ year + (1 | year + name) + ar(time = year, gr = name), 
+               data = nest, chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+
+print(brm_doy)
+
+## Diagnostic plots ##
+
+
 
 
 #================================================================
