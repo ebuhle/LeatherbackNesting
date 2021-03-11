@@ -16,7 +16,7 @@ library(readxl)
 library(lubridate)
 library(matrixStats)
 library(rstan)
-library(brms)
+library(rstanarm)
 library(shinystan)
 library(bayesplot)
 library(here)
@@ -50,10 +50,7 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
   arrange(name, year, date_encounter)
 
 # Remove surveys without an ID'd female (for now)
-# Restrict to first encounter in a given year
-nest <- nest_raw %>% group_by(name, year) %>% 
-  filter(date_encounter == min(date_encounter) & !is.na(ID)) %>% 
-  slice(1) %>% ungroup() %>% as.data.frame() %>% select(-notes)
+nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes)
 
 # # Subset of data without missing CCL_max
 # ccl <- filter(nest, !is.na(CCL_max))
@@ -67,13 +64,19 @@ nest <- nest_raw %>% group_by(name, year) %>%
 #================================================================
 
 # DOY of encounter
-brm_doy <- brm(doy_encounter ~ year + (1 | year + name) + ar(time = year, gr = name), 
-               data = nest, chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+lmer_doy <- stan_lmer(doy_encounter ~ year + (1 | year) + (1 | name), data = nest, 
+                      chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 
-print(brm_doy)
+print(lmer_doy)
+summary(lmer_doy)
 
 ## Diagnostic plots ##
+mod <- lmer_doy
+yrep <- posterior_predict(mod)
+indx <- sample(nrow(yrep), 500)
 
+# PPD marginal density
+ppc_dens_overlay(mod$y, yrep[indx,])
 
 
 
