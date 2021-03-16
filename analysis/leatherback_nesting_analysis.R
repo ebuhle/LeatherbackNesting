@@ -60,25 +60,67 @@ nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes)
 # MODELING
 #
 # Fit hierarchical models to different response variables
-# using brms
+# using rstanarm
 #================================================================
 
 # DOY of encounter
+# turtle-level and year-level hierarchical intercepts
+# linear change over time (year)
 lmer_doy <- stan_lmer(doy_encounter ~ year + (1 | year) + (1 | name), data = nest, 
-                      chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+                      chains = getOption("mc.cores"), iter = 5000, warmup = 1000)
 
 print(lmer_doy)
 summary(lmer_doy)
 
-## Diagnostic plots ##
-mod <- lmer_doy
+# Body size (CCL_max)
+# turtle-level and year-level hierarchical intercepts
+# linear change over time (year)
+lmer_CCL <- stan_lmer(CCL_max ~ year + (1 | year) + (1 | name), data = nest, 
+                      chains = getOption("mc.cores"), iter = 5000, warmup = 1000)
+
+print(lmer_CCL)
+summary(lmer_CCL)
+
+
+
+#----------------------------------------------------------------
+# Diagnostic plots 
+#----------------------------------------------------------------
+
+mod <- lmer_CCL
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 500)
 
 # PPD marginal density
-ppc_dens_overlay(mod$y, yrep[indx,])
+ppc_dens_overlay(mod$y, yrep[indx,]) + ggtitle(deparse(mod$glmod$formula))
+
+# PPD marginal density grouped by year (takes a while)
+ppc_dens_overlay_grouped(mod$y, yrep[indx[1:100],], group = mod$glmod$fr$year) +
+  ggtitle(deparse(mod$glmod$formula))
+
+# PPD scatterplots grouped by year
+ppc_scatter_avg_grouped(mod$y, yrep, group = mod$glmod$fr$year) +
+  geom_abline(intercept = 0, slope = 1) + ggtitle(deparse(mod$glmod$formula))
+
+# Normal QQ plot of year-level random effects
+ranef(mod)$year %>% rename(intercept = `(Intercept)`) %>% 
+  ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
+  theme_bw() + ggtitle(deparse(mod$glmod$formula))
+
+# Normal QQ plot of turtle-level random effects
+ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
+  ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
+  theme_bw() + ggtitle(deparse(mod$glmod$formula))
 
 
+
+
+
+
+
+################
+## DEPRECATED ##
+################
 
 #================================================================
 # MODELING
