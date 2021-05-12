@@ -238,7 +238,7 @@ cbind(dat, t(pred)) %>%
   mutate(name = reorder(name, doy_pred, mean)) %>% 
   ggplot(aes(x = as_date(as_date(doy_pred), format = "%m-%d"), 
              y = name, height = stat(density))) +
-  geom_density_ridges(col = alpha("steelblue4", 0.6), fill = alpha("steelblue4", 0.4), 
+  geom_density_ridges(col = alpha("steelblue4", 0.7), fill = alpha("steelblue4", 0.4), 
                       quantile_lines = TRUE, quantile_fun = mean) +
   scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
                limits = function(x) c(ceiling_date(x[1], "week"), x[2] - 7)) +
@@ -246,7 +246,8 @@ xlab("Encounter DOY") +
   theme(axis.ticks.y = element_blank(), axis.title.y = element_blank(),
         axis.text.y = element_text(size = 11, margin = margin(r = -10)),
         panel.border = element_blank(), panel.background = element_blank(),
-        axis.line.x = element_line(size = 0.5), panel.grid = element_blank())
+        axis.line.x = element_line(size = 0.5), panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank())
 
 ggsave(filename=here("analysis", "results", "doy_female_joyplot.png"),
        width=7*0.9, height=10*0.9, units="in", dpi=300, type="cairo-png")
