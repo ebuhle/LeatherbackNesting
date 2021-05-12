@@ -238,7 +238,8 @@ cbind(dat, t(pred)) %>%
   mutate(name = reorder(name, doy_pred, mean)) %>% 
   ggplot(aes(x = as_date(as_date(doy_pred), format = "%m-%d"), 
              y = name, height = stat(density))) +
-  geom_density_ridges(col = "steelblue4", fill = alpha("steelblue4", 0.4)) +
+  geom_density_ridges(col = alpha("steelblue4", 0.6), fill = alpha("steelblue4", 0.4), 
+                      quantile_lines = TRUE, quantile_fun = mean) +
   scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
                limits = function(x) c(ceiling_date(x[1], "week"), x[2] - 7)) +
 xlab("Encounter DOY") + 
