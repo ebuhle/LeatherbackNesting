@@ -126,17 +126,15 @@ summary(lmer_doy2, pars = "varying")
 
 
 #----------------------------------------------------------------
-# Body size
+# Body size (maximum curved carapace length)
 #----------------------------------------------------------------
 
-# Maximum curved carapace length
 # turtle-level and year-level hierarchical intercepts
-# linear change over time (year)
-lmer_ccl <- stan_lmer(ccl_max ~ year + (1 | year) + (1 | name), data = nest, 
-                      chains = getOption("mc.cores"), iter = 5000, warmup = 1000)
-
-print(lmer_ccl)
-summary(lmer_ccl)
+lmer_ccl0 <- stan_lmer(ccl_max ~ (1 | name) + (1 | fyear), data = nest, 
+                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(lmer_ccl0)
+summary(lmer_ccl0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
+summary(lmer_ccl0, pars = "varying")
 
 
 
@@ -180,7 +178,7 @@ ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>%
 #================================================================
 
 #----------------------------------------------------------------
-# Exploratory plots of weather data
+# Weather data
 #----------------------------------------------------------------
 
 # Annual climatologies of each variable
@@ -210,6 +208,7 @@ weather %>% group_by(date) %>%
 
 ggsave(filename=here("analysis", "results", "climatology.png"),
        width=12, height=5, units="in", dpi=300, type="cairo-png")
+
 
 #----------------------------------------------------------------
 # Breeding phenology: encounter date
@@ -267,10 +266,10 @@ cbind(dat, t(pred)) %>%
   mutate(name = reorder(name, doy_pred, mean)) %>% 
   ggplot(aes(x = as_date(as_date(doy_pred), format = "%m-%d"), 
              y = name, height = stat(density))) +
-  geom_density_ridges(col = alpha("steelblue4", 0.7), fill = alpha("steelblue4", 0.4), 
+  geom_density_ridges(col = "lightgray", fill = "steelblue4", 
                       quantile_lines = TRUE, quantile_fun = mean) +
   scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
-               limits = function(x) c(ceiling_date(x[1], "week"), x[2] - 3)) +
+               limits = function(x) c(x[1] + 7, x[2] - 5)) +
 xlab("Encounter DOY") + 
   theme(axis.ticks.y = element_blank(), axis.title.y = element_blank(),
         axis.text.y = element_text(size = 11, margin = margin(r = -10)),
