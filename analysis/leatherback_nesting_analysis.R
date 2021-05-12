@@ -13,6 +13,7 @@
 
 library(dplyr)
 library(readxl)
+library(tidyr)
 library(lubridate)
 library(matrixStats)
 library(rstan)
@@ -24,6 +25,7 @@ if(.Platform$OS.type == "windows") options(device = windows)
 theme_set(theme_bw(base_size = 14))
 bayesplot_theme_update(panel.grid = element_blank(), plot.title = element_text(size = 10))
 color_scheme_set("gray")
+source(here("analysis", "GeomFlatViolin.R"))
 options(mc.cores = parallel::detectCores(logical = FALSE) - 1)
 
 #================================================================
@@ -94,7 +96,7 @@ nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, ye
 lmer_doy0 <- stan_lmer(doy_encounter ~ (1 | name) + (1 | fyear), data = nest, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy0)
-summary(lmer_doy0, pars = "alpha", regex_pars = "igma")
+summary(lmer_doy0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
 summary(lmer_doy0, pars = "varying")
 
 # turtle-level and year-level hierarchical intercepts
@@ -102,7 +104,7 @@ summary(lmer_doy0, pars = "varying")
 lmer_doy1 <- stan_lmer(doy_encounter ~ year0 + (1 | name) + (1 | fyear), data = nest, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy1)
-summary(lmer_doy1, pars = c("alpha","beta"), regex_pars = "igma")
+summary(lmer_doy1, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
 summary(lmer_doy1, pars = "varying")
 
 # turtle-level and year-level hierarchical intercepts
@@ -112,7 +114,7 @@ lmer_doy2 <- stan_lmer(doy_encounter ~ year0 + humid_std + ws_std + p_std + dp_s
                          ppt_std + sst_std + (1 | name) + (1 | fyear), data = nest, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy2)
-summary(lmer_doy2, pars = c("alpha","beta"), regex_pars = "igma")
+summary(lmer_doy2, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
 summary(lmer_doy2, pars = "varying")
 
 # # DOY of a female's *first* encounter in a given year
@@ -184,14 +186,21 @@ ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>%
 #----------------------------------------------------------------
 
 # Time series of encounter DOY, all data
+ppd <- as.data.frame(t(yrep[indx,])) %>% mutate(fyear = nest$fyear) %>% 
+  pivot_longer(-fyear, names_to = "iter", values_to = "doy_yrep") %>% 
+  mutate(date_encounter = as_date(doy_yrep), "%m-%d")
+
 dev.new(width = 7, height = 5)
 
 nest %>% 
   ggplot(aes(x = fyear, y = as_date(format(date_encounter, "%m-%d"), format = "%m-%d"))) +
-  geom_violin(aes(x = fyear), trim = FALSE) + 
-  geom_jitter(aes(group = 1), width = 0.2, pch = 16, alpha = 0.5) + 
-  scale_x_discrete() + xlab("Year") + ylab("Encounter DOY") +
-  theme(panel.grid = element_blank())
+  geom_flat_violin(aes(fill = alpha("steelblue4", 0.5)), width = 0.8, trim = FALSE, col = NA) +
+  geom_flat_violin(data = ppd, aes(fill = "lightgray"), width = -0.8, col = NA, size = 0.5) +
+  geom_jitter(aes(group = 1), width = 0.2, pch = 16, size = 1, col = "steelblue4", alpha = 0.5) + 
+  scale_y_date(date_breaks = "1 month", date_labels = "%b", expand = expansion(add = -30)) +
+  scale_fill_identity(name = "", guide = "legend", labels = c("observed", "predicted")) +
+  xlab("Year") + ylab("Encounter DOY") + 
+  theme(legend.position = "top", legend.box.margin = margin(b = -12), panel.grid = element_blank())
 
 ggsave(filename=here("analysis", "results", "doy_all_encounters.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
@@ -201,7 +210,7 @@ dev.new(width = 7, height = 5)
 
 nest %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_encounter), .groups = "drop") %>% 
   ggplot(aes(x = year, y = as_date(format(mean_date_encounter, "%m-%d"), format = "%m-%d"), group = name)) +
-  geom_line(alpha = 0.5) + scale_x_continuous(breaks = sort(unique(nest$year))) +
+  geom_line(col = "steelblue4", alpha = 0.6) + scale_x_continuous(breaks = sort(unique(nest$year))) +
   xlab("Year") + ylab("Encounter DOY") + 
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
