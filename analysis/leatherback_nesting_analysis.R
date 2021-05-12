@@ -20,6 +20,7 @@ library(rstan)
 library(rstanarm)
 library(shinystan)
 library(bayesplot)
+library(ggridges)
 library(here)
 if(.Platform$OS.type == "windows") options(device = windows)
 theme_set(theme_bw(base_size = 14))
@@ -217,7 +218,37 @@ nest %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_enco
 ggsave(filename=here("analysis", "results", "doy_female_avg.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
-# Joyplot of 
+# Joyplot of predicted DOY for each female in an average year
+# Only include females encountered in >= 3 years (relatively informative for intercept)
+mod_name <- "lmer_doy2"
+mod <- get(mod_name)
+
+dat <- nest %>% group_by(name) %>% 
+  select(name, year0, fyear, doy_encounter, humid_std:sst_std) %>% 
+  summarize(n_year = n_distinct(year0), year0 = 0, fyear = fyear[1], doy_encounter = 0, 
+            across(ends_with("std"), function(x) 0), .groups = "keep") %>% 
+  filter(n_year > 3) %>% as.data.frame()
+
+pred <- posterior_linpred(mod, newdata = dat, re.form = ~ (1 | name))
+
+dev.new(height = 10, width = 7)
+
+cbind(dat, t(pred)) %>% 
+  pivot_longer(-(name:sst_std), names_to = "iter", values_to = "doy_pred") %>% 
+  mutate(name = reorder(name, doy_pred, mean)) %>% 
+  ggplot(aes(x = as_date(as_date(doy_pred), format = "%m-%d"), 
+             y = name, height = stat(density))) +
+  geom_density_ridges(col = "steelblue4", fill = alpha("steelblue4", 0.4)) +
+  scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
+               limits = function(x) c(ceiling_date(x[1], "week"), x[2] - 7)) +
+xlab("Encounter DOY") + 
+  theme(axis.ticks.y = element_blank(), axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 11, margin = margin(r = -10)),
+        panel.border = element_blank(), panel.background = element_blank(),
+        axis.line.x = element_line(size = 0.5), panel.grid = element_blank())
+
+ggsave(filename=here("analysis", "results", "doy_female_joyplot.png"),
+       width=7*0.9, height=10*0.9, units="in", dpi=300, type="cairo-png")
 
 
 #----------------------------------------------------------------
