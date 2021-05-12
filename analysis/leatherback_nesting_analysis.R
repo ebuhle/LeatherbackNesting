@@ -2,10 +2,6 @@
 # LEATHERBACK SEA TURTLE NESTING ANALYSES
 #################################################################
 
-### NOTES
-# (1) One turtle (ID 1587, encountered only once) has name "2-May". Error?
-# (2) One encounter (664, HAEDI) has date 1/5/1900
-
 
 #================================================================
 # SETUP
@@ -56,21 +52,22 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
 weather_raw <- read.csv(here("data","juno_weather.csv"), header = TRUE) %>% select(-1) %>% 
   rename(ppt = precip) %>% mutate(date = as_date(date, format = "%m/%d/%Y"))
 
-# Filter by window of encounter dates
-weather <- weather_raw %>% mutate(year = year(date), doy = yday(date), .after = date) %>% 
-  filter(doy >= min(nest_raw$doy_encounter, na.rm = TRUE) & 
-           doy <= max(nest_raw$doy_encounter, na.rm = TRUE)) %>% as.data.frame()
+# Change outlier dp_avg and p_avg on two dates to NA
+weather <- weather_raw %>% mutate(year = year(date), doy = yday(date), .after = date) %>%
+  mutate(dp_avg = replace(dp_avg, p_avg == 0, NA), p_avg = ifelse(p_avg == 0, NA, p_avg)) %>% 
+  as.data.frame()
 
+# Filter by window of encounter dates
 # Average weather variables by year
 weather_agg <- weather %>% group_by(year) %>% 
+  filter(between(doy, min(nest_raw$doy_encounter, na.rm = TRUE), max(nest_raw$doy_encounter, na.rm = TRUE))) %>%
   summarize(across(humid_max:sst, mean), .groups = "keep") %>% 
   rename_with(~ gsub("avg", "yavg", .x), ends_with("avg")) %>% 
-  rename(ppt_yavg = ppt, sst_yavg = sst) %>% 
-  select(year, ends_with("yavg")) %>% as.data.frame()
+  rename(ppt_yavg = ppt, sst_yavg = sst) %>% select(year, ends_with("yavg")) %>% 
+  as.data.frame()
 
 # Remove surveys without an ID'd female (for now)
 # Identify first encounter of each turtle each year she was sighted
-# Shift year so origin is first year in data
 # Merge weather into nest data
 # Create centered and scaled predictors
 nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, year) %>% 
@@ -175,12 +172,44 @@ ranef(mod)$fyear %>% rename(intercept = `(Intercept)`) %>%
 ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
   theme_bw() + ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
-
+ 
 
 
 #================================================================
 # FIGURES
 #================================================================
+
+#----------------------------------------------------------------
+# Exploratory plots of weather data
+#----------------------------------------------------------------
+
+# Annual climatologies of each variable
+dev.new(width = 12, height = 5)
+
+weather %>% group_by(date) %>% 
+  summarize(across(c(ends_with("avg"), ppt, sst), mean, na.rm = TRUE), .groups = "drop") %>% 
+  pivot_longer(-date, names_to = "variable") %>% 
+  mutate(variable = recode(variable, humid_avg = "Humidity~('%')", ws_avg = "Wind~speed~(mph)",
+                           p_avg = "Pressure~'(in Hg)'", t_avg = "Temperature~(degree * C)", 
+                           dp_avg = "Dew~point~(degree * C)", ppt = "Precipitation~(cm)", 
+                           sst = "SST~(degree * C)")) %>% 
+  mutate(doy = yday(date), .after = date) %>% group_by(variable, doy) %>% 
+  summarize(lb = quantile(value, 0.05, na.rm = TRUE), med = median(value, na.rm = TRUE), 
+            ub = quantile(value, 0.95, na.rm = TRUE)) %>% 
+  ggplot(aes(x = as_date(as_date(doy), format = "%m-%d"), y = med)) +
+  annotate("rect", xmin = min(as_date(nest$doy_encounter), na.rm = TRUE),
+           xmax = max(as_date(nest$doy_encounter), na.rm = TRUE),
+           ymin = -Inf, ymax = Inf, fill = "steelblue4", alpha = 0.5) +
+  geom_line(lwd = 0.7, col = "gray40") +
+  geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray40", alpha = 0.7) +
+  scale_x_date(date_minor_breaks = "1 month", date_labels = "%b") + 
+  xlab("Date") + ylab("Daily average") +
+  facet_wrap(vars(variable), ncol = 4, scales = "free_y", labeller = label_parsed) +
+  theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank(),
+        strip.background = element_rect(fill = NA))
+
+ggsave(filename=here("analysis", "results", "climatology.png"),
+       width=12, height=5, units="in", dpi=300, type="cairo-png")
 
 #----------------------------------------------------------------
 # Breeding phenology: encounter date
