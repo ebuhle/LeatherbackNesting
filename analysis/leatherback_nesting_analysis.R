@@ -210,7 +210,7 @@ dev.new(width = 7, height = 5)
 
 nest %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_encounter), .groups = "drop") %>% 
   ggplot(aes(x = year, y = as_date(format(mean_date_encounter, "%m-%d"), format = "%m-%d"), group = name)) +
-  geom_line(col = "steelblue4", alpha = 0.6) + scale_x_continuous(breaks = sort(unique(nest$year))) +
+  geom_line(col = "steelblue4", alpha = 0.5) + scale_x_continuous(breaks = sort(unique(nest$year))) +
   xlab("Year") + ylab("Encounter DOY") + 
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
