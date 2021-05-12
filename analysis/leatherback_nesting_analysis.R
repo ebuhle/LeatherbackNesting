@@ -75,7 +75,7 @@ weather_agg <- weather %>% group_by(year) %>%
 # Create centered and scaled predictors
 nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, year) %>% 
   mutate(first_of_year = rank(doy_encounter) == 1, .after = doy_encounter) %>% ungroup() %>% 
-  mutate(year0 = year - min(year), fyear = factor(year), .after = year) %>% 
+  mutate(year_ctr = scale(year, scale = FALSE), fyear = factor(year), .after = year) %>% 
   left_join(select(weather, c(date, ends_with("avg"), ppt, sst)), by = c("date_encounter" = "date")) %>% 
   left_join(weather_agg) %>% arrange(name, year, date_encounter) %>% 
   mutate(across(ends_with("yavg"), scale, .names = "{gsub('yavg', 'std', .col)}")) %>% 
@@ -102,7 +102,7 @@ summary(lmer_doy0, pars = "varying")
 
 # turtle-level and year-level hierarchical intercepts
 # linear trend
-lmer_doy1 <- stan_lmer(doy_encounter ~ year0 + (1 | name) + (1 | fyear), data = nest, 
+lmer_doy1 <- stan_lmer(doy_encounter ~ year_ctr + (1 | name) + (1 | fyear), data = nest, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy1)
 summary(lmer_doy1, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
@@ -111,7 +111,7 @@ summary(lmer_doy1, pars = "varying")
 # turtle-level and year-level hierarchical intercepts
 # linear trend
 # all weather variables (average annual anomalies)
-lmer_doy2 <- stan_lmer(doy_encounter ~ year0 + humid_std + ws_std + p_std + dp_std + 
+lmer_doy2 <- stan_lmer(doy_encounter ~ year_ctr + humid_std + ws_std + p_std + dp_std + 
                          ppt_std + sst_std + (1 | name) + (1 | fyear), data = nest, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy2)
@@ -122,7 +122,7 @@ summary(lmer_doy2, pars = "varying")
 # # turtle-level and year-level hierarchical intercepts
 # # linear change over time (year)
 # # => very similar to lmer_doy but fewer obs/turtle so more uncertainty
-# lmer_doy1st1 <- stan_lmer(doy_encounter ~ year0 + (1 | name) + (1 | fyear),
+# lmer_doy1st1 <- stan_lmer(doy_encounter ~ year_ctr + (1 | name) + (1 | fyear),
 #                          data = nest, subset = first_of_year,
 #                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 # print(lmer_doy1st1)
@@ -224,8 +224,8 @@ mod_name <- "lmer_doy2"
 mod <- get(mod_name)
 
 dat <- nest %>% group_by(name) %>% 
-  select(name, year0, fyear, doy_encounter, humid_std:sst_std) %>% 
-  summarize(n_year = n_distinct(year0), year0 = 0, fyear = fyear[1], doy_encounter = 0, 
+  select(name, year_ctr, fyear, doy_encounter, humid_std:sst_std) %>% 
+  summarize(n_year = n_distinct(year_ctr), year_ctr = 0, fyear = fyear[1], doy_encounter = 0, 
             across(ends_with("std"), function(x) 0), .groups = "keep") %>% 
   filter(n_year > 3) %>% as.data.frame()
 
@@ -241,7 +241,7 @@ cbind(dat, t(pred)) %>%
   geom_density_ridges(col = alpha("steelblue4", 0.7), fill = alpha("steelblue4", 0.4), 
                       quantile_lines = TRUE, quantile_fun = mean) +
   scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
-               limits = function(x) c(ceiling_date(x[1], "week"), x[2] - 7)) +
+               limits = function(x) c(ceiling_date(x[1], "week"), x[2] - 3)) +
 xlab("Encounter DOY") + 
   theme(axis.ticks.y = element_blank(), axis.title.y = element_blank(),
         axis.text.y = element_text(size = 11, margin = margin(r = -10)),
