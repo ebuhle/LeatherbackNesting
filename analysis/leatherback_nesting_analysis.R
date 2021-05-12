@@ -194,8 +194,8 @@ dev.new(width = 7, height = 5)
 
 nest %>% 
   ggplot(aes(x = fyear, y = as_date(format(date_encounter, "%m-%d"), format = "%m-%d"))) +
-  geom_flat_violin(aes(fill = alpha("steelblue4", 0.5)), width = 0.8, trim = FALSE, col = NA) +
-  geom_flat_violin(data = ppd, aes(fill = "lightgray"), width = -0.8, col = NA, size = 0.5) +
+  geom_flat_violin(aes(fill = alpha("steelblue4", 0.5)), scale = "width", width = 0.8, trim = FALSE, col = NA) +
+  geom_flat_violin(data = ppd, aes(fill = "lightgray"), scale = "width", width = -0.8, col = NA) +
   geom_jitter(aes(group = 1), width = 0.2, pch = 16, size = 1, col = "steelblue4", alpha = 0.5) + 
   scale_y_date(date_breaks = "1 month", date_labels = "%b", expand = expansion(add = -30)) +
   scale_fill_identity(name = "", guide = "legend", labels = c("observed", "predicted")) +
@@ -216,6 +216,8 @@ nest %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_enco
 
 ggsave(filename=here("analysis", "results", "doy_female_avg.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
+
+# Joyplot of 
 
 
 #----------------------------------------------------------------
