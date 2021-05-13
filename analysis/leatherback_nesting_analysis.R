@@ -11,6 +11,7 @@ library(dplyr)
 library(readxl)
 library(tidyr)
 library(lubridate)
+library(zoo)
 library(matrixStats)
 library(rstan)
 library(rstanarm)
@@ -58,7 +59,7 @@ weather_raw <- read.csv(here("data","juno_weather.csv"), header = TRUE) %>% sele
 weather <- weather_raw %>% mutate(year = year(date), doy = yday(date), .after = date) %>%
   mutate(dp_avg = replace(dp_avg, p_avg == 0 & row_number() != n(), NA), # avoid trouble b/c
          p_avg = ifelse(p_avg == 0 & row_number() != n(), NA, p_avg),    # of terminal NAs
-         dp_avg = c(na.approx(dp_avg), NA), p_avg = c(na.approx(p_avg), NA)) %>%
+         dp_avg = c(zoo::na.approx(dp_avg), NA), p_avg = c(zoo::na.approx(p_avg), NA)) %>%
   as.data.frame()
 
 # Filter by window of encounter dates
@@ -345,13 +346,13 @@ ggsave(filename=here("analysis", "results", "ccl_max_timeseries.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
 ## Specific growth rate as a function of initial length
-## 
+## Overlay data on lmer hyper-mean regression line and female-specific lines
 mod_name <- "lmer_sgr2"
 mod <- get(mod_name)
 
 dat <- data.frame(name = "0", fyear = "0", 
-                  ccl_max0_std = seq(min(mod$glmod$fr$ccl_max0_std),
-                                     max(mod$glmod$fr$ccl_max0_std),
+                  ccl_max0_std = seq(1.1*min(mod$glmod$fr$ccl_max0_std),
+                                     1.1*max(mod$glmod$fr$ccl_max0_std),
                                      length = 200))
 pred <- posterior_linpred(mod, newdata = dat, re.form = ~ (1 | name))
 ccl_ref <- size$ccl_max0[!is.na(size$sgr)]
@@ -369,15 +370,14 @@ mod$glmod$fr %>% cbind(ccl_max0 = ccl_ref) %>%
   geom_ribbon(aes(x = ccl_max0, ymin = lb, ymax = ub), data = dat, 
               fill = "lightgray", alpha = 0.8) +
   geom_line(aes(x = ccl_max0, y = med), data = dat, col = "darkgray", lwd = 1) +
-  # geom_abline(aes(intercept = `(Intercept)`, slope = ccl_max0_std), data = coef(mod)$name) +
-  # geom_abline(aes(intercept = 0.03 + 0.015 * ccl_mean, slope = -0.015 / ccl_sd)) +
   geom_line(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
   geom_point(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
-  theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank()) +
-  theme_bw(base_size = 16) + xlab("Initial CCL_max (cm)") + 
+  theme_bw(base_size = 16) + 
+  theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank()) +
+  xlab(bquote("Initial" ~ CCL[max] ~ "(cm)")) + 
   ylab(bquote("Specific growth rate (" * decade^-1 * " )"))
 
-ggsave(filename=here("analysis", "results", "sgr_vs_ccl_max0.png"),
+ggsave(filename=here("analysis", "results", "sgr_vs_init_ccl.png"),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 
