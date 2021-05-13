@@ -84,14 +84,19 @@ turtle <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, 
 
 # Subset of encounter data that recorded max CCL
 # Average measurements within a year (variation is miniscule)
-# Turtle was only encountered once IFF is.na(size$growth)
+# Compute specific growth rate per decade = 10* log(final / initial) / t
+# Turtle was only encountered once IFF is.na(size$sgr)
+# Center and scale initial max CCL based on non-missing growth rates
 size <- turtle %>% filter(!is.na(ccl_max)) %>% group_by(name, ID, year) %>% 
-  select(name, ID, doy_encounter, year, first_of_year, ccl_max) %>% 
-  summarize(doy_encounter = doy_encounter[first_of_year], ccl_max = mean(ccl_max)) %>% 
+  select(name, ID, year, fyear, first_of_year, ccl_max) %>% 
+  summarize(fyear = unique(fyear), ccl_max = mean(ccl_max)) %>% 
   group_by(name) %>% arrange(year) %>% 
-  mutate(elapsed = c(NA, diff(year)), ccl_max0 = lag(ccl_max), growth = ccl_max - ccl_max0) %>% 
-  select(name:doy_encounter, elapsed, ccl_max, ccl_max0, growth) %>% as.data.frame()
-
+  mutate(dyear = c(NA, diff(year)), ccl_max0 = lag(ccl_max),
+         sgr = 10 * (log(ccl_max) - log(ccl_max0)) / dyear) %>% 
+  ungroup() %>% 
+  mutate(ccl_max0_std = (ccl_max0 - mean(ccl_max0[!is.na(sgr)])) / sd(ccl_max0[!is.na(sgr)])) %>% 
+  select(name, ID, year, fyear, dyear, ccl_max, ccl_max0, ccl_max0_std, sgr) %>% 
+  as.data.frame()
 
 
 #================================================================
@@ -142,23 +147,41 @@ summary(lmer_doy2, pars = "varying")
 
 
 #----------------------------------------------------------------
-# Body size (maximum curved carapace length)
+# Somatic growth: 
+# change in max curved carapace length / year 
+# for turtles encountered multiple times
 #----------------------------------------------------------------
 
 # turtle-level and year-level hierarchical intercepts
-lmer_ccl0 <- stan_lmer(ccl_max ~ (1 | name) + (1 | fyear), data = turtle, 
-                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_ccl0)
-summary(lmer_ccl0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
-summary(lmer_ccl0, pars = "varying")
+lmer_sgr0 <- stan_lmer(sgr ~ (1 | name) + (1 | fyear), data = size, 
+                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(lmer_sgr0, 3)
+summary(lmer_sgr0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(lmer_sgr0, pars = "varying")
 
+# turtle-level and year-level hierarchical intercepts
+# initial size effect
+lmer_sgr1 <- stan_lmer(sgr ~ ccl_max0_std + (1 | name) + (1 | fyear), data = size, 
+                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(lmer_sgr1, 3)
+summary(lmer_sgr1, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(lmer_sgr1, pars = "varying")
+
+# turtle-level and year-level hierarchical intercepts
+# initial size effect with turtle-varying slopes 
+# (diagonal random effects covariance matrix)
+lmer_sgr2 <- stan_lmer(sgr ~ ccl_max0_std + (ccl_max0_std || name) + (1 | fyear), data = size, 
+                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(lmer_sgr2, 3)
+summary(lmer_sgr2, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(lmer_sgr2, pars = "varying")
 
 
 #----------------------------------------------------------------
 # Diagnostic plots 
 #----------------------------------------------------------------
 
-mod_name <- "lmer_doy2"
+mod_name <- "lmer_sgr2"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
@@ -173,7 +196,7 @@ ppc_dens_overlay_grouped(mod$y, yrep[indx,], group = mod$glmod$fr$year) +
   ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
 
 # PPD scatterplots grouped by year
-ppc_scatter_avg_grouped(mod$y, yrep, group = mod$glmod$fr$year) +
+ppc_scatter_avg_grouped(mod$y, yrep, group = mod$glmod$fr$fyear) +
   geom_abline(intercept = 0, slope = 1) + 
   ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
 
