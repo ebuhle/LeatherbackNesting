@@ -95,8 +95,9 @@ size <- turtle %>% filter(!is.na(ccl_max)) %>% group_by(name, ID, year) %>%
   mutate(dyear = c(NA, diff(year)), ccl_max0 = lag(ccl_max),
          sgr = 10 * (log(ccl_max) - log(ccl_max0)) / dyear) %>% 
   ungroup() %>% 
-  mutate(ccl_max0_std = (ccl_max0 - mean(ccl_max0[!is.na(sgr)])) / sd(ccl_max0[!is.na(sgr)])) %>% 
-  select(name, ID, year, fyear, dyear, ccl_max, ccl_max0, ccl_max0_std, sgr) %>% 
+  mutate(ccl_max0_std = (ccl_max0 - mean(ccl_max0[!is.na(sgr)])) / sd(ccl_max0[!is.na(sgr)]),
+         year_ctr = scale(year, scale = FALSE)) %>% 
+  select(name, ID, year, year_ctr, fyear, dyear, ccl_max, ccl_max0, ccl_max0_std, sgr) %>% 
   as.data.frame()
 
 
@@ -177,6 +178,15 @@ print(lmer_sgr2, 3)
 summary(lmer_sgr2, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975), digits = 3)
 summary(lmer_sgr2, pars = "varying")
 
+# turtle-level and year-level hierarchical intercepts
+# initial size effect 
+# linear time trend
+lmer_sgr3 <- stan_lmer(sgr ~ ccl_max0_std + year_ctr + (1 | name) + (1 | fyear), data = size, 
+                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(lmer_sgr3, 3)
+summary(lmer_sgr3, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(lmer_sgr3, pars = "varying")
+
 
 #----------------------------------------------------------------
 # Diagnostic plots 
@@ -210,7 +220,6 @@ ranef(mod)$fyear %>% rename(intercept = `(Intercept)`) %>%
 ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
   theme_bw() + ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
-
 
 
 #================================================================
@@ -354,25 +363,30 @@ dat <- data.frame(name = "0", fyear = "0",
                   ccl_max0_std = seq(1.1*min(mod$glmod$fr$ccl_max0_std),
                                      1.1*max(mod$glmod$fr$ccl_max0_std),
                                      length = 200))
-pred <- posterior_linpred(mod, newdata = dat, re.form = ~ (1 | name))
+pred_hyper <- posterior_linpred(mod, newdata = dat, re.form = NA)
+pred_group <- posterior_linpred(mod, newdata = dat)
 ccl_ref <- size$ccl_max0[!is.na(size$sgr)]
 ccl_mean <- mean(ccl_ref)
 ccl_sd <- sd(ccl_ref)
 dat <- dat %>% 
-  mutate(ccl_max0 = ccl_max0_std * ccl_sd + ccl_mean,
-  lb = colQuantiles(pred, probs = 0.025), med = colMedians(pred), 
-  ub = colQuantiles(pred, probs = 0.975))
+  mutate(ccl_max0 = ccl_max0_std * ccl_sd + ccl_mean, med_hyper = colMedians(pred_hyper), 
+  lb_hyper = colQuantiles(pred_hyper, probs = 0.025), 
+  ub_hyper = colQuantiles(pred_hyper, probs = 0.975), 
+  lb_group = colQuantiles(pred_group, probs = 0.025), 
+  ub_group = colQuantiles(pred_group, probs = 0.975))
 
 dev.new(width = 7, height = 7)
 
 mod$glmod$fr %>% cbind(ccl_max0 = ccl_ref) %>% 
   ggplot(aes(x = ccl_max0, group = name)) +
-  geom_ribbon(aes(x = ccl_max0, ymin = lb, ymax = ub), data = dat, 
-              fill = "lightgray", alpha = 0.8) +
-  geom_line(aes(x = ccl_max0, y = med), data = dat, col = "darkgray", lwd = 1) +
+  geom_ribbon(aes(x = ccl_max0, ymin = lb_group, ymax = ub_group), data = dat, 
+              fill = "lightgray", alpha = 0.5) +
+  geom_ribbon(aes(x = ccl_max0, ymin = lb_hyper, ymax = ub_hyper), data = dat, 
+              fill = "gray", alpha = 0.7) +
+  geom_line(aes(x = ccl_max0, y = med_hyper), data = dat, col = "darkgray", lwd = 1) +
   geom_line(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
   geom_point(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
-  theme_bw(base_size = 16) + 
+  scale_y_continuous(n.breaks = 7) + theme_bw(base_size = 16) + 
   theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank()) +
   xlab(bquote("Initial" ~ CCL[max] ~ "(cm)")) + 
   ylab(bquote("Specific growth rate (" * decade^-1 * " )"))
