@@ -192,7 +192,7 @@ summary(lmer_sgr3, pars = "varying")
 # Diagnostic plots 
 #----------------------------------------------------------------
 
-mod_name <- "lmer_sgr2"
+mod_name <- "lmer_sgr3"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
@@ -219,10 +219,11 @@ ranef(mod)$fyear %>% rename(intercept = `(Intercept)`) %>%
 # Normal QQ plot of turtle-level random effects
 ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
-  theme_bw() + theme(panel.grid = element_blank()) +
+  theme_bw(base_size = 16) + 
+  theme(panel.grid = element_blank(), plot.title = element_text(size = 11)) +
   xlab("Normal quantiles") + ylab("Quantiles of turtle-specific intercepts") +
   ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
-ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppc_dens_overlay.png")),
+ggsave(filename=here("analysis", "results", paste0(mod_name, "_turtle-intercept_qqnorm.png")),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 
