@@ -219,7 +219,11 @@ ranef(mod)$fyear %>% rename(intercept = `(Intercept)`) %>%
 # Normal QQ plot of turtle-level random effects
 ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
-  theme_bw() + ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
+  theme_bw() + theme(panel.grid = element_blank()) +
+  xlab("Normal quantiles") + ylab("Quantiles of turtle-specific intercepts") +
+  ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
+ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppc_dens_overlay.png")),
+       width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 
 #================================================================
