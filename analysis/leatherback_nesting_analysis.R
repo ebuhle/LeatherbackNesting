@@ -253,7 +253,13 @@ ggsave(filename=here("analysis", "results", "climatology.png"),
 # Breeding phenology: encounter date
 #----------------------------------------------------------------
 
-# Time series of encounter DOY, all data
+## Time series of encounter DOY, all data
+## Split violin plots show data distribution vs. PPD for each year
+mod_name <- "lmer_doy2"
+mod <- get(mod_name)
+yrep <- posterior_predict(mod)
+indx <- sample(nrow(yrep), 100)
+
 ppd <- as.data.frame(t(yrep[indx,])) %>% mutate(fyear = turtle$fyear) %>% 
   pivot_longer(-fyear, names_to = "iter", values_to = "doy_yrep") %>% 
   mutate(date_encounter = as_date(doy_yrep), "%m-%d")
@@ -273,7 +279,7 @@ turtle %>%
 ggsave(filename=here("analysis", "results", "doy_all_encounters.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
-# Time series of encounter DOY, female averages
+## Time series of encounter DOY, female averages
 dev.new(width = 7, height = 5)
 
 turtle %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_encounter), .groups = "drop") %>% 
@@ -285,8 +291,8 @@ turtle %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_en
 ggsave(filename=here("analysis", "results", "doy_female_avg.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
-# Joyplot of predicted DOY for each female in an average year
-# Only include females encountered in >= 3 years (relatively informative for intercept)
+## Joyplot of predicted DOY for each female in an average year
+## Only include females encountered in >= 3 years (relatively informative for intercept)
 mod_name <- "lmer_doy2"
 mod <- get(mod_name)
 
@@ -321,62 +327,96 @@ ggsave(filename=here("analysis", "results", "doy_female_joyplot.png"),
 
 
 #----------------------------------------------------------------
-# Body size
+# Somatic growth: 
+# change in max curved carapace length / year 
+# for turtles encountered multiple times
 #----------------------------------------------------------------
 
-# Time series of body size, all data
-turtle %>% 
-  ggplot(aes(x = year, y = ccl_max)) + 
-  geom_jitter(width = 0.2, pch = 16, alpha = 0.5) + 
-  scale_x_continuous(breaks = sort(unique(turtle$year))) +
-  xlab("Year") + ylab("Max curved carapace length (cm)") + theme_bw(base_size = 14) + 
-  theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
+## Time series of body size for each female
+dev.new(width = 7, height = 5)
 
-# Time series of body size, female averages
 turtle %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .groups = "drop") %>% 
   ggplot(aes(x = year, y = mean_ccl_max, group = name)) +
-  geom_line(alpha = 0.5) + scale_x_continuous(breaks = sort(unique(turtle$year))) +
+  geom_line(col = "steelblue4", alpha = 0.7) + scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Max curved carapace length (cm)") +
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
+ggsave(filename=here("analysis", "results", "ccl_max_timeseries.png"),
+       width=7, height=5, units="in", dpi=300, type="cairo-png")
+
+## Specific growth rate as a function of initial length
+## 
+mod_name <- "lmer_sgr2"
+mod <- get(mod_name)
+
+dat <- data.frame(name = "0", fyear = "0", 
+                  ccl_max0_std = seq(min(mod$glmod$fr$ccl_max0_std),
+                                     max(mod$glmod$fr$ccl_max0_std),
+                                     length = 200))
+pred <- posterior_linpred(mod, newdata = dat, re.form = ~ (1 | name))
+ccl_ref <- size$ccl_max0[!is.na(size$sgr)]
+ccl_mean <- mean(ccl_ref)
+ccl_sd <- sd(ccl_ref)
+dat <- dat %>% 
+  mutate(ccl_max0 = ccl_max0_std * ccl_sd + ccl_mean,
+  lb = colQuantiles(pred, probs = 0.025), med = colMedians(pred), 
+  ub = colQuantiles(pred, probs = 0.975))
+
+dev.new(width = 7, height = 7)
+
+mod$glmod$fr %>% cbind(ccl_max0 = ccl_ref) %>% 
+  ggplot(aes(x = ccl_max0, group = name)) +
+  geom_ribbon(aes(x = ccl_max0, ymin = lb, ymax = ub), data = dat, 
+              fill = "lightgray", alpha = 0.8) +
+  geom_line(aes(x = ccl_max0, y = med), data = dat, col = "darkgray", lwd = 1) +
+  # geom_abline(aes(intercept = `(Intercept)`, slope = ccl_max0_std), data = coef(mod)$name) +
+  # geom_abline(aes(intercept = 0.03 + 0.015 * ccl_mean, slope = -0.015 / ccl_sd)) +
+  geom_line(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
+  geom_point(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
+  theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank()) +
+  theme_bw(base_size = 16) + xlab("Initial CCL_max (cm)") + 
+  ylab(bquote("Specific growth rate (" * decade^-1 * " )"))
+
+ggsave(filename=here("analysis", "results", "sgr_vs_ccl_max0.png"),
+       width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 
 
 
-################
-## DEPRECATED ##
-################
-
-#================================================================
-# MODELING
-#
-# Fit hierarchical random walk state-space (HRWSS) models
-# to different response variables
-#================================================================
-
-# DOY of encounter
-hrwss_doy <- stan(file = here("analysis","HRWSS.stan"),
-                  data = list(N = nrow(turtle), year = as.numeric(factor(turtle$year)),
-                              turtle = as.numeric(factor(turtle$name)), 
-                              y = turtle$doy_encounter),
-                  pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
-                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
-                  control = list(adapt_delta = 0.95))
-
-print(hrwss_doy, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
-
-
-# Max curved carapace length
-hrwss_ccl <- stan(file = here("analysis","HRWSS.stan"),
-                  data = list(N = nrow(ccl), year = as.numeric(factor(ccl$year)),
-                              turtle = as.numeric(factor(ccl$name)), y = ccl$CCL_max),
-                  pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
-                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
-                  control = list(adapt_delta = 0.95))
-
-print(hrwss_ccl, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
 
 
 
 
 
+# ################
+# ## DEPRECATED ##
+# ################
+# 
+# #================================================================
+# # MODELING
+# #
+# # Fit hierarchical random walk state-space (HRWSS) models
+# # to different response variables
+# #================================================================
+# 
+# # DOY of encounter
+# hrwss_doy <- stan(file = here("analysis","HRWSS.stan"),
+#                   data = list(N = nrow(turtle), year = as.numeric(factor(turtle$year)),
+#                               turtle = as.numeric(factor(turtle$name)), 
+#                               y = turtle$doy_encounter),
+#                   pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
+#                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
+#                   control = list(adapt_delta = 0.95))
+# 
+# print(hrwss_doy, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
+# 
+# 
+# # Max curved carapace length
+# hrwss_ccl <- stan(file = here("analysis","HRWSS.stan"),
+#                   data = list(N = nrow(ccl), year = as.numeric(factor(ccl$year)),
+#                               turtle = as.numeric(factor(ccl$name)), y = ccl$CCL_max),
+#                   pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
+#                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
+#                   control = list(adapt_delta = 0.95))
+# 
+# print(hrwss_ccl, pars = c("theta","y_hat","LL"), include = FALSE, probs = c(0.025, 0.5, 0.975))
