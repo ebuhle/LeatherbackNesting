@@ -50,11 +50,15 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
 
 # Import weather data
 weather_raw <- read.csv(here("data","juno_weather.csv"), header = TRUE) %>% select(-1) %>% 
-  rename(ppt = precip) %>% mutate(date = as_date(date, format = "%m/%d/%Y"))
+  rename(ppt = precip) %>% mutate(date = as_date(date, format = "%m/%d/%Y")) %>% 
+  arrange(date)
 
-# Change outlier dp_avg and p_avg on two dates to NA
+# Interpolate outlier dp_avg and p_avg on two dates
+# Ignore 26 NAs in SST (outside nesting season)
 weather <- weather_raw %>% mutate(year = year(date), doy = yday(date), .after = date) %>%
-  mutate(dp_avg = replace(dp_avg, p_avg == 0, NA), p_avg = ifelse(p_avg == 0, NA, p_avg)) %>% 
+  mutate(dp_avg = replace(dp_avg, p_avg == 0 & row_number() != n(), NA), # avoid trouble b/c
+         p_avg = ifelse(p_avg == 0 & row_number() != n(), NA, p_avg),    # of terminal NAs
+         dp_avg = c(na.approx(dp_avg), NA), p_avg = c(na.approx(p_avg), NA)) %>%
   as.data.frame()
 
 # Filter by window of encounter dates
@@ -66,17 +70,20 @@ weather_agg <- weather %>% group_by(year) %>%
   rename(ppt_yavg = ppt, sst_yavg = sst) %>% select(year, ends_with("yavg")) %>% 
   as.data.frame()
 
-# Remove surveys without an ID'd female (for now)
+# Encounter data
 # Identify first encounter of each turtle each year she was sighted
-# Merge weather into nest data
+# Merge weather into encounter data
 # Create centered and scaled predictors
-nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, year) %>% 
+turtle <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, year) %>% 
   mutate(first_of_year = rank(doy_encounter) == 1, .after = doy_encounter) %>% ungroup() %>% 
   mutate(year_ctr = scale(year, scale = FALSE), fyear = factor(year), .after = year) %>% 
   left_join(select(weather, c(date, ends_with("avg"), ppt, sst)), by = c("date_encounter" = "date")) %>% 
   left_join(weather_agg) %>% arrange(name, year, date_encounter) %>% 
   mutate(across(ends_with("yavg"), scale, .names = "{gsub('yavg', 'std', .col)}")) %>% 
   as.data.frame()
+
+# Subset of encounter data that recorded max CCW
+
 
 
 #================================================================
@@ -91,7 +98,7 @@ nest <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, ye
 #----------------------------------------------------------------
 
 # turtle-level and year-level hierarchical intercepts
-lmer_doy0 <- stan_lmer(doy_encounter ~ (1 | name) + (1 | fyear), data = nest, 
+lmer_doy0 <- stan_lmer(doy_encounter ~ (1 | name) + (1 | fyear), data = turtle, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy0)
 summary(lmer_doy0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
@@ -99,7 +106,7 @@ summary(lmer_doy0, pars = "varying")
 
 # turtle-level and year-level hierarchical intercepts
 # linear trend
-lmer_doy1 <- stan_lmer(doy_encounter ~ year_ctr + (1 | name) + (1 | fyear), data = nest, 
+lmer_doy1 <- stan_lmer(doy_encounter ~ year_ctr + (1 | name) + (1 | fyear), data = turtle, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy1)
 summary(lmer_doy1, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
@@ -109,7 +116,7 @@ summary(lmer_doy1, pars = "varying")
 # linear trend
 # all weather variables (average annual anomalies)
 lmer_doy2 <- stan_lmer(doy_encounter ~ year_ctr + humid_std + ws_std + p_std + dp_std + 
-                         ppt_std + sst_std + (1 | name) + (1 | fyear), data = nest, 
+                         t_std + ppt_std + sst_std + (1 | name) + (1 | fyear), data = turtle, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy2)
 summary(lmer_doy2, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
@@ -120,7 +127,7 @@ summary(lmer_doy2, pars = "varying")
 # # linear change over time (year)
 # # => very similar to lmer_doy but fewer obs/turtle so more uncertainty
 # lmer_doy1st1 <- stan_lmer(doy_encounter ~ year_ctr + (1 | name) + (1 | fyear),
-#                          data = nest, subset = first_of_year,
+#                          data = turtle, subset = first_of_year,
 #                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 # print(lmer_doy1st1)
 
@@ -130,7 +137,7 @@ summary(lmer_doy2, pars = "varying")
 #----------------------------------------------------------------
 
 # turtle-level and year-level hierarchical intercepts
-lmer_ccl0 <- stan_lmer(ccl_max ~ (1 | name) + (1 | fyear), data = nest, 
+lmer_ccl0 <- stan_lmer(ccl_max ~ (1 | name) + (1 | fyear), data = turtle, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_ccl0)
 summary(lmer_ccl0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
@@ -170,7 +177,7 @@ ranef(mod)$fyear %>% rename(intercept = `(Intercept)`) %>%
 ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
   theme_bw() + ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
- 
+
 
 
 #================================================================
@@ -195,8 +202,8 @@ weather %>% group_by(date) %>%
   summarize(lb = quantile(value, 0.05, na.rm = TRUE), med = median(value, na.rm = TRUE), 
             ub = quantile(value, 0.95, na.rm = TRUE)) %>% 
   ggplot(aes(x = as_date(as_date(doy), format = "%m-%d"), y = med)) +
-  annotate("rect", xmin = min(as_date(nest$doy_encounter), na.rm = TRUE),
-           xmax = max(as_date(nest$doy_encounter), na.rm = TRUE),
+  annotate("rect", xmin = min(as_date(turtle$doy_encounter), na.rm = TRUE),
+           xmax = max(as_date(turtle$doy_encounter), na.rm = TRUE),
            ymin = -Inf, ymax = Inf, fill = "steelblue4", alpha = 0.5) +
   geom_line(lwd = 0.7, col = "gray40") +
   geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray40", alpha = 0.7) +
@@ -215,13 +222,13 @@ ggsave(filename=here("analysis", "results", "climatology.png"),
 #----------------------------------------------------------------
 
 # Time series of encounter DOY, all data
-ppd <- as.data.frame(t(yrep[indx,])) %>% mutate(fyear = nest$fyear) %>% 
+ppd <- as.data.frame(t(yrep[indx,])) %>% mutate(fyear = turtle$fyear) %>% 
   pivot_longer(-fyear, names_to = "iter", values_to = "doy_yrep") %>% 
   mutate(date_encounter = as_date(doy_yrep), "%m-%d")
 
 dev.new(width = 7, height = 5)
 
-nest %>% 
+turtle %>% 
   ggplot(aes(x = fyear, y = as_date(format(date_encounter, "%m-%d"), format = "%m-%d"))) +
   geom_flat_violin(aes(fill = alpha("steelblue4", 0.5)), scale = "width", width = 0.8, trim = FALSE, col = NA) +
   geom_flat_violin(data = ppd, aes(fill = "lightgray"), scale = "width", width = -0.8, col = NA) +
@@ -237,9 +244,9 @@ ggsave(filename=here("analysis", "results", "doy_all_encounters.png"),
 # Time series of encounter DOY, female averages
 dev.new(width = 7, height = 5)
 
-nest %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_encounter), .groups = "drop") %>% 
+turtle %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_encounter), .groups = "drop") %>% 
   ggplot(aes(x = year, y = as_date(format(mean_date_encounter, "%m-%d"), format = "%m-%d"), group = name)) +
-  geom_line(col = "steelblue4", alpha = 0.5) + scale_x_continuous(breaks = sort(unique(nest$year))) +
+  geom_line(col = "steelblue4", alpha = 0.5) + scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Encounter DOY") + 
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
@@ -251,7 +258,7 @@ ggsave(filename=here("analysis", "results", "doy_female_avg.png"),
 mod_name <- "lmer_doy2"
 mod <- get(mod_name)
 
-dat <- nest %>% group_by(name) %>% 
+dat <- turtle %>% group_by(name) %>% 
   select(name, year_ctr, fyear, doy_encounter, humid_std:sst_std) %>% 
   summarize(n_year = n_distinct(year_ctr), year_ctr = 0, fyear = fyear[1], doy_encounter = 0, 
             across(ends_with("std"), function(x) 0), .groups = "keep") %>% 
@@ -270,7 +277,7 @@ cbind(dat, t(pred)) %>%
                       quantile_lines = TRUE, quantile_fun = mean) +
   scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
                limits = function(x) c(x[1] + 7, x[2] - 5)) +
-xlab("Encounter DOY") + 
+  xlab("Encounter DOY") + 
   theme(axis.ticks.y = element_blank(), axis.title.y = element_blank(),
         axis.text.y = element_text(size = 11, margin = margin(r = -10)),
         panel.border = element_blank(), panel.background = element_blank(),
@@ -286,17 +293,17 @@ ggsave(filename=here("analysis", "results", "doy_female_joyplot.png"),
 #----------------------------------------------------------------
 
 # Time series of body size, all data
-nest %>% 
+turtle %>% 
   ggplot(aes(x = year, y = ccl_max)) + 
   geom_jitter(width = 0.2, pch = 16, alpha = 0.5) + 
-  scale_x_continuous(breaks = sort(unique(nest$year))) +
+  scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Max curved carapace length (cm)") + theme_bw(base_size = 14) + 
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
 # Time series of body size, female averages
-nest %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .groups = "drop") %>% 
+turtle %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .groups = "drop") %>% 
   ggplot(aes(x = year, y = mean_ccl_max, group = name)) +
-  geom_line(alpha = 0.5) + scale_x_continuous(breaks = sort(unique(nest$year))) +
+  geom_line(alpha = 0.5) + scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Max curved carapace length (cm)") +
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
@@ -317,9 +324,9 @@ nest %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .group
 
 # DOY of encounter
 hrwss_doy <- stan(file = here("analysis","HRWSS.stan"),
-                  data = list(N = nrow(nest), year = as.numeric(factor(nest$year)),
-                              turtle = as.numeric(factor(nest$name)), 
-                              y = nest$doy_encounter),
+                  data = list(N = nrow(turtle), year = as.numeric(factor(turtle$year)),
+                              turtle = as.numeric(factor(turtle$name)), 
+                              y = turtle$doy_encounter),
                   pars = c("mu","sigma_alpha","sigma_theta","sigma","alpha","theta","y_hat","LL"),
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
                   control = list(adapt_delta = 0.95))
