@@ -82,7 +82,15 @@ turtle <- nest_raw %>% filter(!is.na(ID)) %>% select(-notes) %>% group_by(name, 
   mutate(across(ends_with("yavg"), scale, .names = "{gsub('yavg', 'std', .col)}")) %>% 
   as.data.frame()
 
-# Subset of encounter data that recorded max CCW
+# Subset of encounter data that recorded max CCL
+# Average measurements within a year (variation is miniscule)
+# Turtle was only encountered once IFF is.na(size$growth)
+size <- turtle %>% filter(!is.na(ccl_max)) %>% group_by(name, ID, year) %>% 
+  select(name, ID, doy_encounter, year, first_of_year, ccl_max) %>% 
+  summarize(doy_encounter = doy_encounter[first_of_year], ccl_max = mean(ccl_max)) %>% 
+  group_by(name) %>% arrange(year) %>% 
+  mutate(elapsed = c(NA, diff(year)), ccl_max0 = lag(ccl_max), growth = ccl_max - ccl_max0) %>% 
+  select(name:doy_encounter, elapsed, ccl_max, ccl_max0, growth) %>% as.data.frame()
 
 
 
@@ -115,8 +123,9 @@ summary(lmer_doy1, pars = "varying")
 # turtle-level and year-level hierarchical intercepts
 # linear trend
 # all weather variables (average annual anomalies)
-lmer_doy2 <- stan_lmer(doy_encounter ~ year_ctr + humid_std + ws_std + p_std + dp_std + 
-                         t_std + ppt_std + sst_std + (1 | name) + (1 | fyear), data = turtle, 
+# except dew point (correlation with temperature is 0.91)
+lmer_doy2 <- stan_lmer(doy_encounter ~ year_ctr + humid_std + ws_std + p_std + t_std + 
+                         ppt_std + sst_std + (1 | name) + (1 | fyear), data = turtle, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy2)
 summary(lmer_doy2, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
@@ -189,9 +198,9 @@ ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>%
 #----------------------------------------------------------------
 
 # Annual climatologies of each variable
-dev.new(width = 12, height = 5)
+dev.new(width = 10, height = 5)
 
-weather %>% group_by(date) %>% 
+weather %>% group_by(date) %>% select(-dp_avg) %>% 
   summarize(across(c(ends_with("avg"), ppt, sst), mean, na.rm = TRUE), .groups = "drop") %>% 
   pivot_longer(-date, names_to = "variable") %>% 
   mutate(variable = recode(variable, humid_avg = "Humidity~('%')", ws_avg = "Wind~speed~(mph)",
@@ -209,12 +218,12 @@ weather %>% group_by(date) %>%
   geom_ribbon(aes(ymin = lb, ymax = ub), fill = "gray40", alpha = 0.7) +
   scale_x_date(date_minor_breaks = "1 month", date_labels = "%b") + 
   xlab("Date") + ylab("Daily average") +
-  facet_wrap(vars(variable), ncol = 4, scales = "free_y", labeller = label_parsed) +
+  facet_wrap(vars(variable), ncol = 3, scales = "free_y", labeller = label_parsed) +
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank(),
         strip.background = element_rect(fill = NA))
 
 ggsave(filename=here("analysis", "results", "climatology.png"),
-       width=12, height=5, units="in", dpi=300, type="cairo-png")
+       width=10, height=5, units="in", dpi=300, type="cairo-png")
 
 
 #----------------------------------------------------------------
