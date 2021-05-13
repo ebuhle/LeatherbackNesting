@@ -179,9 +179,9 @@ summary(lmer_sgr2, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.
 summary(lmer_sgr2, pars = "varying")
 
 # turtle-level and year-level hierarchical intercepts
-# initial size effect 
+# initial size effect with turtle-varying slopes 
 # linear time trend
-lmer_sgr3 <- stan_lmer(sgr ~ ccl_max0_std + year_ctr + (1 | name) + (1 | fyear), data = size, 
+lmer_sgr3 <- stan_lmer(sgr ~ ccl_max0_std + year_ctr + (ccl_max0_std || name) + (1 | fyear), data = size, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_sgr3, 3)
 summary(lmer_sgr3, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975), digits = 3)
