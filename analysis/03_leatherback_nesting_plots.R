@@ -13,10 +13,10 @@ dev.new(width = 10, height = 5)
 weather %>% group_by(date) %>% select(-dp_avg) %>% 
   summarize(across(c(ends_with("avg"), ppt, sst), mean, na.rm = TRUE), .groups = "drop") %>% 
   pivot_longer(-date, names_to = "variable") %>% 
-  mutate(variable = recode(variable, humid_avg = "Humidity~('%')", ws_avg = "Wind~speed~(mph)",
-                           p_avg = "Pressure~'(in Hg)'", t_avg = "Temperature~(degree * C)", 
-                           dp_avg = "Dew~point~(degree * C)", ppt = "Precipitation~(cm)", 
-                           sst = "SST~(degree * C)")) %>% 
+  mutate(variable = recode_factor(variable, humid_avg = "Humidity~('%')", ws_avg = "Wind~speed~(mph)",
+                                  p_avg = "Pressure~'(in Hg)'", t_avg = "Temperature~(degree * C)", 
+                                  dp_avg = "Dew~point~(degree * C)", ppt = "Precipitation~(cm)", 
+                                  sst = "SST~(degree * C)")) %>% 
   mutate(doy = yday(date), .after = date) %>% group_by(variable, doy) %>% 
   summarize(lb = quantile(value, 0.05, na.rm = TRUE), med = median(value, na.rm = TRUE), 
             ub = quantile(value, 0.95, na.rm = TRUE)) %>% 
