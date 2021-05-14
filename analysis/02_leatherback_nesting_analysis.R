@@ -61,15 +61,6 @@ print(lmer_doy2)
 summary(lmer_doy2, pars = c("alpha","beta"), regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
 summary(lmer_doy2, pars = "varying")
 
-# # DOY of a female's *first* encounter in a given year
-# # turtle-level and year-level hierarchical intercepts
-# # linear change over time (year)
-# # => very similar to lmer_doy but fewer obs/turtle so more uncertainty
-# lmer_doy1st1 <- stan_lmer(doy_encounter ~ year_ctr + (1 | name) + (1 | fyear),
-#                          data = turtle, subset = first_of_year,
-#                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(lmer_doy1st1)
-
 
 #----------------------------------------------------------------
 # Somatic growth: 
@@ -129,24 +120,6 @@ glm_neo1 <- stan_glm(cbind(neophyte, remigrant) ~ year_ctr,
 print(glm_neo1, 2)
 summary(glm_neo1, probs = c(0.025, 0.5, 0.975))
 
-## Little evidence of overdispersion
-## GLMMs also had lots of bad Pareto k estimates
-# # intercept only
-# # observation-level (year) residuals
-# glmer_neo0 <- stan_glmer(cbind(neophyte, remigrant) ~ (1 | fyear), 
-#                          data = neophyte, family = binomial, 
-#                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(glmer_neo0, 2)
-# summary(glmer_neo0, probs = c(0.025, 0.5, 0.975))
-# 
-# # linear trend
-# # observation-level (year) residuals
-# glmer_neo1 <- stan_glmer(cbind(neophyte, remigrant) ~ year_ctr + (1 | fyear), 
-#                          data = neophyte, family = binomial, 
-#                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(glmer_neo1, 2)
-# summary(glmer_neo1, probs = c(0.025, 0.5, 0.975))
-
 ## Model selection using loo
 stanreg_list_neo <- stanreg_list(glm_neo0, glm_neo1)
 loo_neo <- lapply(stanreg_list_neo, loo)
@@ -155,10 +128,27 @@ print(loo_compare(loo_neo)[,], 3)
 
 
 #----------------------------------------------------------------
+# Hatchling emergence success
+# emerged = hatched - live in nest - dead in nest
+#----------------------------------------------------------------
+
+## All nest data ##
+
+# year-level hierarchical intercept
+glmer_anest0 <- stan_glmer(cbind(emerged, clutch) ~ (1 | year), 
+                           data = nest, family = binomial, 
+                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(glmer_anest0, 2)
+summary(glmer_anest0, pars = "alpha", regex_pars = "igma", probs = c(0.025, 0.5, 0.975))
+summary(glmer_anest0, pars = "varying")
+
+
+
+#----------------------------------------------------------------
 # Diagnostic plots 
 #----------------------------------------------------------------
 
-mod_name <- "glm_neo1"
+mod_name <- "glmer_anest0"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
@@ -168,8 +158,8 @@ ppc_dens_overlay(mod$y, yrep[indx,]) + ggtitle(deparse(mod$glmod$formula, width.
 ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppc_dens_overlay.png")),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
-# PPD marginal histogram
-ppc_hist(mod$y[,"neophyte"], yrep[1:7,], binwidth = diff(range(yrep)) / 15) + 
+# PPD marginal histogram for binomial responses
+ppc_hist(mod$y[,1], yrep[1:7,], binwidth = diff(range(yrep)) / 15) + 
   ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
 
 # PPD marginal density grouped by year (takes a while)

@@ -29,7 +29,7 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
          fat_depth = `Fat Depth`, time_encounter = `Time Spotted Turtle`, 
          behav_encounter = `Behavior when first spotted`, crawl = `Crawl ID_am`,
          date_survey = `Survey Date_am`, beach = Beach, zone = Zone, crawl_type = `Crawl Type`,
-         nest = `Nest ID`, dist_hwl = `Distance to High Water Line`,
+         nestID = `Nest ID`, dist_hwl = `Distance to High Water Line`,
          dist_dune = `Distance to Toe of Dune`, lat = Latitude, lon = Longitude,
          date_emergence = `Date of Hatchling Emergence`, incubation = `Incubation Time`,
          hatched = `# Hatched Eggshells`, unhatched = `# Uhatched/Whole Eggs`,
@@ -102,6 +102,11 @@ neophyte <- turtle %>% group_by(name, year) %>%
   cbind(with(., Hmisc::binconf(x = neophyte, n = count))) %>%
   rename(p_neophyte = PointEst) %>% as.data.frame(row.names = 1:nrow(.))
   
-
+# Nest success data
+nest <- nest_raw %>% filter(!is.na(nestID) & !is.na(date_survey)) %>% 
+  mutate(year = year(date_survey), year_ctr = scale(year, scale = FALSE), 
+         emerged = hatched - live - dead) %>% 
+  select(name, ID, date_survey, year, nestID, beach, zone, dist_hwl:incubation,
+         clutch, hatched:dead_pipped, emerged, hatch_rate:fate)
   
 
