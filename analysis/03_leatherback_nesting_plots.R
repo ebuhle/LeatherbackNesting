@@ -124,7 +124,8 @@ dev.new(width = 7, height = 5)
 
 turtle %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .groups = "drop") %>% 
   ggplot(aes(x = year, y = mean_ccl_max, group = name)) +
-  geom_line(col = "steelblue4", alpha = 0.7) + scale_x_continuous(breaks = sort(unique(turtle$year))) +
+  geom_line(col = "steelblue4", alpha = 0.7) + 
+  scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Max curved carapace length (cm)") +
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
 
@@ -170,5 +171,41 @@ mod$glmod$fr %>% cbind(ccl_max0 = ccl_ref) %>%
 
 ggsave(filename=here("analysis", "results", "sgr_vs_init_ccl.png"),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
+
+
+#----------------------------------------------------------------
+# Proportion of neophytes
+#----------------------------------------------------------------
+
+
+# Time series of proportion neophytes
+# Show data + CI and posterior expectation + PPD
+mod_name <- "glm_neo1"
+mod <- get(mod_name)
+epred <- posterior_epred(mod)
+yrep <- sweep(posterior_predict(mod), 2, neophyte$count, "/")
+
+dev.new(width = 7, height = 5)
+
+neophyte %>% 
+  ggplot(aes(x = year, y = p_neophyte)) +
+  geom_ribbon(aes(ymin = colQuantiles(yrep, probs = 0.025),
+                  ymax = colQuantiles(yrep, probs = 0.975)),
+              fill = "lightgray", alpha = 0.5) +
+  geom_ribbon(aes(ymin = colQuantiles(epred, probs = 0.025),
+                  ymax = colQuantiles(epred, probs = 0.975)),
+              fill = "gray", alpha = 0.7) +
+  geom_line(y = colMedians(epred), lwd = 1, col = "darkgray") +
+  geom_point(size = 4, col = "steelblue4") + 
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
+  scale_x_continuous(breaks = neophyte$year) +
+  xlab("Year") + ylab("Proportion neophytes") +
+  theme(panel.grid = element_blank())
+  
+ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
+       width=7, height=5, units="in", dpi=300, type="cairo-png")
+
+
+
 
 

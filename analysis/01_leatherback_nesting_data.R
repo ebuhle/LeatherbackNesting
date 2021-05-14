@@ -98,8 +98,9 @@ neophyte <- turtle %>% group_by(name, year) %>%
   group_by(year, neophyte) %>% summarize(count = n()) %>% ungroup() %>% 
   pivot_wider(id_cols = year, names_from = neophyte, values_from = count, values_fill = 0) %>% 
   mutate(fyear = factor(year), year_ctr = scale(year, scale = FALSE), .after = year) %>% 
-  mutate(count = neophyte + remigrant, p_neophyte = neophyte / count) %>% 
-  as.data.frame()
+  mutate(count = neophyte + remigrant) %>% 
+  cbind(with(., Hmisc::binconf(x = neophyte, n = count))) %>%
+  rename(p_neophyte = PointEst) %>% as.data.frame(row.names = 1:nrow(.))
   
 
   
