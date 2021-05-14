@@ -198,7 +198,7 @@ neophyte %>%
   geom_line(y = colMedians(epred), lwd = 1, col = "darkgray") +
   geom_point(size = 4, col = "steelblue4") + 
   geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
-  scale_x_continuous(breaks = neophyte$year) +
+  scale_x_continuous(breaks = neophyte$year) + scale_y_continuous(n.breaks = 8) +
   xlab("Year") + ylab("Proportion neophytes") +
   theme(panel.grid = element_blank())
   

@@ -151,7 +151,7 @@ summary(glm_neo1, probs = c(0.025, 0.5, 0.975))
 stanreg_list_neo <- stanreg_list(glm_neo0, glm_neo1)
 loo_neo <- lapply(stanreg_list_neo, loo)
 loo_neo
-loo_compare(loo_neo)
+print(loo_compare(loo_neo)[,], 3)
 
 
 #----------------------------------------------------------------
