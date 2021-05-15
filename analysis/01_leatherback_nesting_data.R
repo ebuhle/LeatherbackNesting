@@ -92,7 +92,7 @@ size <- turtle %>% filter(!is.na(ccl_max)) %>% group_by(name, ID, year) %>%
          ccl_max, ccl_max0, ccl_max0_std, lgr, sgr) %>% 
   as.data.frame()
 
-# Frequencies of neophytes vs. repeat breeders
+# Frequencies of (apparent) neophytes vs. repeat breeders
 neophyte <- turtle %>% group_by(name, year) %>% 
   summarize(neophyte = ifelse(any(date_encounter == date_first), "neophyte", "remigrant")) %>% 
   group_by(year, neophyte) %>% summarize(count = n()) %>% ungroup() %>% 
@@ -103,10 +103,15 @@ neophyte <- turtle %>% group_by(name, year) %>%
   rename(p_neophyte = PointEst) %>% as.data.frame(row.names = 1:nrow(.))
   
 # Nest success data
+# hname fills in unknown names with unique IDs
+#   (assumes every nest w/o encounter was made by a unique female)
 nest <- nest_raw %>% filter(!is.na(nestID) & !is.na(date_survey)) %>% 
-  mutate(year = year(date_survey), year_ctr = scale(year, scale = FALSE), 
+  mutate(hname = replace(name, is.na(name), 1:sum(is.na(name))),
+         year = year(date_survey), year_ctr = scale(year, scale = FALSE), fyear = factor(year), 
+         zone = factor(zone), dist_hwl_std = scale(dist_hwl), dist_dune_std = scale(dist_dune),
          emerged = hatched - live - dead) %>% 
-  select(name, ID, date_survey, year, nestID, beach, zone, dist_hwl:incubation,
+  select(name, hname, ID, date_survey, year, year_ctr, fyear, nestID, beach, zone, 
+         dist_hwl, dist_hwl_std, dist_dune, dist_dune_std, lat:incubation, 
          clutch, hatched:dead_pipped, emerged, hatch_rate:fate)
   
 

@@ -13,7 +13,8 @@ dev.new(width = 10, height = 5)
 weather %>% group_by(date) %>% select(-dp_avg) %>% 
   summarize(across(c(ends_with("avg"), ppt, sst), mean, na.rm = TRUE), .groups = "drop") %>% 
   pivot_longer(-date, names_to = "variable") %>% 
-  mutate(variable = recode_factor(variable, humid_avg = "Humidity~('%')", ws_avg = "Wind~speed~(mph)",
+  mutate(variable = recode_factor(variable, 
+                                  humid_avg = "Humidity~('%')", ws_avg = "Wind~speed~(mph)",
                                   p_avg = "Pressure~'(in Hg)'", t_avg = "Temperature~(degree * C)", 
                                   dp_avg = "Dew~point~(degree * C)", ppt = "Precipitation~(cm)", 
                                   sst = "SST~(degree * C)")) %>% 
@@ -176,7 +177,6 @@ ggsave(filename=here("analysis", "results", "sgr_vs_init_ccl.png"),
 #----------------------------------------------------------------
 # Proportion of neophytes
 #----------------------------------------------------------------
-
 
 # Time series of proportion neophytes
 # Show data + CI and posterior expectation + PPD
