@@ -104,14 +104,21 @@ neophyte <- turtle %>% group_by(name, year) %>%
   
 # Nest success data
 # hname fills in unknown names with unique IDs
+# replace encounter ccl_max with female's annual avg ccl_max
 #   (assumes every nest w/o encounter was made by a unique female)
-nest <- nest_raw %>% filter(!is.na(nestID) & !is.na(date_survey)) %>% 
+nest <- nest_raw %>% 
+  filter(!is.na(nestID) & !is.na(date_survey) & !is.na(dist_hwl) & !is.na(dist_dune)) %>% 
   mutate(hname = replace(name, is.na(name), 1:sum(is.na(name))),
-         year = year(date_survey), year_ctr = scale(year, scale = FALSE), fyear = factor(year), 
-         zone = factor(zone), dist_hwl_std = scale(dist_hwl), dist_dune_std = scale(dist_dune),
-         emerged = hatched - live - dead) %>% 
-  select(name, hname, ID, date_survey, year, year_ctr, fyear, nestID, beach, zone, 
-         dist_hwl, dist_hwl_std, dist_dune, dist_dune_std, lat:incubation, 
-         clutch, hatched:dead_pipped, emerged, hatch_rate:fate)
+         year = year(date_survey), year_ctr = scale(year, scale = FALSE), fyear = factor(year),
+         ccl_max = size$ccl_max[match(paste(name, year), paste(size$name, size$year))],
+         ccl_max_std = scale(ccl_max), zone = factor(zone), dist_hwl_std = scale(dist_hwl), 
+         dist_dune_std = scale(dist_dune), emerged = hatched - live - dead) %>% 
+  cbind(with(., Hmisc::binconf(x = replace(emerged, is.na(emerged), 0), 
+                               n = replace(clutch, is.na(clutch), 0)))) %>%
+  select(name, hname, ID, date_survey, year, year_ctr, fyear, ccl_max, ccl_max_std, 
+         nestID, beach, zone, dist_hwl, dist_hwl_std, dist_dune, dist_dune_std, 
+         lat:incubation, clutch, hatched:dead_pipped, emerged, hatch_rate, 
+         emergence_rate, Lower, Upper, fate) %>% 
+  as.data.frame(row.names = 1:nrow(.))
   
 

@@ -2,6 +2,18 @@
 # LEATHERBACK SEA TURTLE NESTING FIGURES
 #################################################################
 
+# Possible exploratory plots to show interesting patterns
+#
+# * Number of nests per year (shows rebound after decline from 2015-2017
+#
+# * Number of beaches visited by females
+# nest %>% group_by(name) %>% summarize(n_beach = length(unique(beach))) %>% 
+#   group_by(n_beach) %>% summarize(count = n())
+#
+# * Do females have a typical nesting height as well as date?
+# * Do females show site-fidelity to a specific beach? How much beach-switching
+#   occurs w/in or b/w years?
+
 
 #----------------------------------------------------------------
 # Weather data
@@ -205,6 +217,59 @@ neophyte %>%
 ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
+
+#----------------------------------------------------------------
+# Hatchling emergence success
+#----------------------------------------------------------------
+
+# Probability of zero emergence vs distance from HWL by beach
+## ADD binomial CIs to points
+dev.new(width = 4, height = 8)
+
+nest %>% mutate(dhwl = cut(dist_hwl, 15)) %>% group_by(beach, dhwl) %>% 
+  summarize(dist_hwl = mean(dist_hwl), n_zero = sum(emergence_rate == 0, na.rm = TRUE), n = n()) %>% 
+  ungroup() %>% cbind(with(., Hmisc::binconf(x = n_zero, n = n, alpha = 0.1))) %>%
+  ggplot(aes(x = dist_hwl, y = PointEst)) + 
+  geom_point(size = 2.5, col = "steelblue4") + 
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
+  xlab("Distance from HWL") + ylab("P(emergence = 0)") +
+  facet_wrap(vars(beach), ncol = 1, scales = "free_y") +
+  theme(strip.background = element_rect(fill = "white"))
+
+# Mean of nonzero emergence rates vs distance from HWL by beach
+## ADD SEs to points (will be busy; use vertical segments only?)
+## Use probability y-axis
+dev.new(width = 4, height = 8)
+
+nest %>% filter(emergence_rate > 0) %>% 
+  ggplot(aes(x = dist_hwl, y = qlogis(emergence_rate))) + 
+  geom_point(size = 2, col = "steelblue4", alpha = 0.5) + 
+  facet_wrap(vars(beach), ncol = 1)
+
+# Probability of zero emergence vs. distance from dune by beach
+## ADD binomial CIs to points
+dev.new(width = 4, height = 8)
+
+nest %>% mutate(ddune = cut(dist_dune, 15)) %>% group_by(beach, ddune) %>% 
+  summarize(dist_dune = mean(dist_dune), n_zero = sum(emergence_rate == 0, na.rm = TRUE), 
+            n = n(), .groups = "drop") %>% 
+  cbind(with(., Hmisc::binconf(x = n_zero, n = n, alpha = 0.1))) %>% 
+  ggplot(aes(x = dist_dune, y = PointEst)) + 
+  geom_point(size = 2.5, col = "steelblue4") + 
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
+  xlab("Distance from toe of dune") + ylab("P(emergence = 0)") +
+  facet_wrap(vars(beach), ncol = 1, scales = "free_y") +
+  theme(strip.background = element_rect(fill = "white"))
+
+# Mean of nonzero emergence rates vs distance from HWL by beach
+## ADD SEs to points (will be busy; use vertical segments only?)
+## Use probability y-axis
+dev.new(width = 4, height = 8)
+
+nest %>% filter(emergence_rate > 0) %>% 
+  ggplot(aes(x = dist_dune, y = qlogis(emergence_rate))) + 
+  geom_point(size = 2, col = "steelblue4", alpha = 0.5) + 
+  facet_wrap(vars(beach), ncol = 1)
 
 
 

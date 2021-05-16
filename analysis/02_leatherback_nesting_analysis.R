@@ -2,6 +2,10 @@
 # LEATHERBACK SEA TURTLE NESTING ANALYSES
 #################################################################
 
+## Qs:
+## * What do negative distances from HWL and dune mean?
+## * What is zone?
+
 
 #================================================================
 # SETUP
@@ -231,13 +235,25 @@ print(glmer_hnest2, 3)
 summary(glmer_hnest2, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
 summary(glmer_hnest2, pars = "varying", regex_pars = "igma")
 
+# turtle-level and year-level hierarchical intercepts
+# linear trend
+# main effects of beach, distance to HWL and distance to dune
+# beach x distance to HWL and beach x distance to dune interactions
+glmer_hnest3 <- stan_glmer(emergence_rate ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
+                             beach:dist_hwl_std + beach:dist_dune_std +
+                             (1 | hname) + (1 | fyear), 
+                           data = nest, family = binomial, weights = clutch,
+                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+print(glmer_hnest3, 3)
+summary(glmer_hnest3, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(glmer_hnest3, pars = "varying", regex_pars = "igma")
 
 
 #================================================================
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "glmer_hnest2"
+mod_name <- "glmer_hnest3"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
@@ -248,6 +264,7 @@ indx <- sample(nrow(yrep), 100)
 
 # PPD marginal density
 ppc_dens_overlay(mod$y, yrep[indx,]) + ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
+
 ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppc_dens_overlay.png")),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
@@ -297,6 +314,7 @@ ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>%
   theme(panel.grid = element_blank(), plot.title = element_text(size = 11)) +
   xlab("Normal quantiles") + ylab("Quantiles of turtle-specific intercepts") +
   ggtitle(deparse(mod$glmod$formula, width.cutoff = 500))
+
 ggsave(filename=here("analysis", "results", paste0(mod_name, "_turtle-intercept_qqnorm.png")),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
 
