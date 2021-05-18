@@ -227,7 +227,7 @@ ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
 dev.new(width = 4, height = 8)
 
 nest %>% mutate(dhwl = cut(dist_hwl, 15)) %>% group_by(beach, dhwl) %>% 
-  summarize(dist_hwl = mean(dist_hwl), n_zero = sum(emergence_rate == 0, na.rm = TRUE), n = n()) %>% 
+  summarize(dist_hwl = mean(dist_hwl), n_zero = sum(emergence_rate = 0, na.rm = TRUE), n = n()) %>% 
   ungroup() %>% cbind(with(., Hmisc::binconf(x = n_zero, n = n, alpha = 0.1))) %>%
   ggplot(aes(x = dist_hwl, y = PointEst)) + 
   geom_point(size = 2.5, col = "steelblue4") + 

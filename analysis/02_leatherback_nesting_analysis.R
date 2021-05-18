@@ -239,9 +239,8 @@ summary(glmer_hnest2, pars = "varying", regex_pars = "igma")
 # linear trend
 # main effects of beach, distance to HWL and distance to dune
 # beach x distance to HWL and beach x distance to dune interactions
-glmer_hnest3 <- stan_glmer(emergence_rate ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
-                             beach:dist_hwl_std + beach:dist_dune_std +
-                             (1 | hname) + (1 | fyear), 
+glmer_hnest3 <- stan_glmer(emergence_rate ~ year_ctr + doy_survey_std + beach + 
+                             dist_hwl_std + dist_dune_std + (1 | hname) + (1 | fyear), 
                            data = nest, family = binomial, weights = clutch,
                            chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(glmer_hnest3, 3)
@@ -253,7 +252,7 @@ summary(glmer_hnest3, pars = "varying", regex_pars = "igma")
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "glmer_hnest3"
+mod_name <- "glmer_anest2"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
