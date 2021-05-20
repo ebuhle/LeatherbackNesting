@@ -2,10 +2,15 @@
 # LEATHERBACK SEA TURTLE NESTING ANALYSES
 #################################################################
 
-## Qs:
-## * What do negative distances from HWL and dune mean?
-## * What is zone?
-
+## Qs about survey protocol
+##
+## * Surveys are not daily; is that by design? What is the frequency?
+## * What is done with nests constructed in between survey dates? 
+##   Are they ignored? Added to the next survey's total?
+## * Brost et al. 2015 note potential bias from excluding predated or washed-out
+##   nests from nest success estimates. Are those data (coded as NA) available?
+## * Brost et al. 2015 also seem to imply that post-emergence estimates of clutch size 
+##   may be unreliable. Any reason for concern?
 
 #================================================================
 # SETUP
