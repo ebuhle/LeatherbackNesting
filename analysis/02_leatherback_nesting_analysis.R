@@ -2,6 +2,18 @@
 # LEATHERBACK SEA TURTLE NESTING ANALYSES
 #################################################################
 
+## TO-DO
+##
+## * In addition to analyzing encounter DOY, what about nest DOY?
+## * Model daily encounter or nest counts as observations
+## * Include neophyte vs. remigrant as predictor in phenology models
+## * Zone random effects (which models? all?)
+## * Growth rate: linear instead of SGR
+## * Emergence rate: ZIB model
+## * Emergence rate: include clutch sequence as predictor
+## * Emergence rate w/ encounter: include neophyte vs. remigrant as predictor
+
+
 ## Qs about survey protocol
 ##
 ## * Surveys are not daily; is that by design? What is the frequency?
@@ -243,7 +255,6 @@ summary(glmer_hnest2, pars = "varying", regex_pars = "igma")
 # turtle-level and year-level hierarchical intercepts
 # linear trend
 # main effects of beach, distance to HWL and distance to dune
-# beach x distance to HWL and beach x distance to dune interactions
 glmer_hnest3 <- stan_glmer(emergence_rate ~ year_ctr + doy_survey_std + beach + 
                              dist_hwl_std + dist_dune_std + (1 | hname) + (1 | fyear), 
                            data = nest, family = binomial, weights = clutch,
