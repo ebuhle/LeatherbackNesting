@@ -151,73 +151,11 @@ loo_neo
 print(loo_compare(loo_neo)[,], 3)
 
 
-#----------------------------------------------------------------
+#---------------------------------------------------------------
 # Hatchling emergence success
-# emerged = hatched - live in nest - dead in nest
-#----------------------------------------------------------------
-
-#---------------------------------------------------------------#
-# Binomial GLMMs                                                #
-#---------------------------------------------------------------#
-
-#---------------#
-# All nest data #
-#---------------#
-
-# zone-level hierarchical intercept
-# year-level hierarchical intercept
-glmer_anest0 <- stan_glmer(emergence_rate ~ (1 | zone) + (1 | fyear), 
-                           data = nest, family = binomial, weights = clutch,
-                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(glmer_anest0, 2)
-summary(glmer_anest0, pars = "alpha", probs = c(0.025, 0.5, 0.975))
-summary(glmer_anest0, pars = "varying", regex_pars = "igma")
-
-# zone-level hierarchical intercept
-# year-level hierarchical intercept
-# linear trend
-# fixed effects of beach, distance to HWL and distance to dune
-glmer_anest1 <- stan_glmer(emergence_rate ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
-                             (1 | zone) + (1 | fyear),
-                           data = nest, family = binomial, weights = clutch,
-                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(glmer_anest1, 3)
-summary(glmer_anest1, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(glmer_anest1, pars = "varying", regex_pars = "igma")
-
-#--------------------------------------------#
-# Only nests where a female was encountered  #
-# (exclude TEQ b/c only 2 encounters)        #
-#--------------------------------------------#
-
-# zone-level hierarchical intercept
-# year-level hierarchical intercept
-# turtle-level hierarchical intercept
-glmer_enest0 <- stan_glmer(emergence_rate ~ (1 | zone) + (1 | fyear) + (1 | name), 
-                           data = nest, subset = beach != "TEQ",
-                           family = binomial, weights = clutch, 
-                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(glmer_enest0, 2)
-summary(glmer_enest0, pars = "alpha", probs = c(0.025, 0.5, 0.975))
-summary(glmer_enest0, pars = "varying", regex_pars = "igma")
-
-# zone-level hierarchical intercept
-# year-level hierarchical intercept
-# turtle-level hierarchical intercept
-# linear trend
-# fixed effects of beach, distance to HWL, distance to dune and neophyte vs. remigrant
-glmer_enest1 <- stan_glmer(emergence_rate ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
-                             neophyte + (1 | zone) + (1 | fyear) + (1 | name), 
-                           data = nest, subset = beach != "TEQ",
-                           family = binomial, weights = clutch,
-                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(glmer_enest1, 3)
-summary(glmer_enest1, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(glmer_enest1, pars = "varying", regex_pars = "igma")
-
-#---------------------------------------------------------------#
-# Zero-inflated binomial GLMMs                                  #
-#---------------------------------------------------------------#
+# emerged = hatched - live in nest - dead in nest 
+# Zero-inflated binomial GLMMs
+#---------------------------------------------------------------
 
 #---------------#
 # All nest data #
@@ -264,52 +202,6 @@ zib_enest1 <- brm(emerged | trials(clutch) ~ year_ctr + beach + dist_hwl_std + d
                   data = subset(nest, beach != "TEQ"), family = zero_inflated_binomial(), 
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_enest1)
-
-
-
-
-# #-----------------------------------------------------------#
-# # All nests - unknown females drawn from hyperdistribution  #
-# #-----------------------------------------------------------#
-# 
-# # turtle-level and year-level hierarchical intercepts
-# glmer_hnest0 <- stan_glmer(emergence_rate ~ (1 | hname) + (1 | fyear), 
-#                            data = nest, family = binomial, weights = clutch, 
-#                            chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(glmer_hnest0, 2)
-# summary(glmer_hnest0, pars = "alpha", probs = c(0.025, 0.5, 0.975))
-# summary(glmer_hnest0, pars = "varying", regex_pars = "igma")
-# 
-# # turtle-level and year-level hierarchical intercepts
-# # linear trend
-# glmer_hnest1 <- stan_glmer(emergence_rate ~ year_ctr + (1 | hname) + (1 | fyear), 
-#                            data = nest, family = binomial, weights = clutch,
-#                            chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(glmer_hnest1, 2)
-# summary(glmer_hnest1, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
-# summary(glmer_hnest1, pars = "varying", regex_pars = "igma")
-# 
-# # turtle-level and year-level hierarchical intercepts
-# # linear trend
-# # fixed effects of beach, distance to HWL and distance to dune
-# glmer_hnest2 <- stan_glmer(emergence_rate ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
-#                              (1 | hname) + (1 | fyear), 
-#                            data = nest, family = binomial, weights = clutch,
-#                            chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(glmer_hnest2, 3)
-# summary(glmer_hnest2, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
-# summary(glmer_hnest2, pars = "varying", regex_pars = "igma")
-# 
-# # turtle-level and year-level hierarchical intercepts
-# # linear trend
-# # main effects of beach, distance to HWL and distance to dune
-# glmer_hnest3 <- stan_glmer(emergence_rate ~ year_ctr + doy_survey_std + beach + 
-#                              dist_hwl_std + dist_dune_std + (1 | hname) + (1 | fyear), 
-#                            data = nest, family = binomial, weights = clutch,
-#                            chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-# print(glmer_hnest3, 3)
-# summary(glmer_hnest3, pars = c("alpha", "beta"), probs = c(0.025, 0.5, 0.975), digits = 3)
-# summary(glmer_hnest3, pars = "varying", regex_pars = "igma")
 
 
 #================================================================
