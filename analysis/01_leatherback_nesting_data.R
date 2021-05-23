@@ -21,6 +21,8 @@ library(here)
 #================================================================
 
 # Import raw nest data and rename variables
+# Recode zone from within-beach ID to unique ID
+# Reorder beaches and zones N -> S
 nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.2020.xlsx"),
                        sheet = "2007-2020") %>% as.data.frame() %>% 
   rename(name = `Turtle Name`, ID = `Turtle ID`, date_first = `Date of 1st Encounter`,
@@ -37,6 +39,9 @@ nest_raw <- read_excel(here("data", "Historical Leatherback Data_updated1.18.202
          dead_pipped = `# Dead Pipped`, clutch = `Total Clutch Size`, 
          hatch_rate = `Hatch Success`, emergence_rate = `Emergence Success`, 
          fate = `Fate Code`, notes = Notes) %>%
+  mutate(beach = reorder(beach, -lat, mean, na.rm = TRUE),
+         zone = factor(paste0(beach, formatC(zone, width = 2, flag = "0"))),
+         zone = reorder(zone, -lat, mean, na.rm = TRUE))  %>%
   mutate(doy_encounter = yday(date_encounter), .after = date_encounter)
 
 # Import weather data
