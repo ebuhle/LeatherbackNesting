@@ -91,6 +91,7 @@ summary(lmer_doy2, pars = "varying", regex_pars = "igma")
 # Somatic growth: 
 # change in max curved carapace length / year 
 # for turtles encountered multiple times
+# Hierarchical linear / Gaussian models
 #----------------------------------------------------------------
 
 # turtle-level and year-level hierarchical intercepts
@@ -129,6 +130,7 @@ summary(lmer_sgr3, pars = "varying", regex_pars = "igma")
 
 #----------------------------------------------------------------
 # Proportion of neophytes
+# Binomial GLMs
 #----------------------------------------------------------------
 
 # intercept only
@@ -161,22 +163,39 @@ print(loo_compare(loo_neo)[,], 3)
 # All nest data #
 #---------------#
 
+# Binomial:
 # zone-level hierarchical intercept
 # year-level hierarchical intercept
-zib_anest0 <- brm(emerged | trials(clutch) ~ (1 | zone) + (1 | fyear),
+# nest- (observation-) level overdispersion residual
+zib_anest0 <- brm(emerged | trials(clutch) ~ (1 | zone) + (1 | fyear) + (1 | nestID),
                   data = nest, family = zero_inflated_binomial(), 
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_anest0)
 
-# zone-level hierarchical intercept
+# Binomial:
 # year-level hierarchical intercept
+# nest- (observation-) level overdispersion residual
 # linear trend
 # fixed effects of beach, distance to HWL and distance to dune
 zib_anest1 <- brm(emerged | trials(clutch) ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
-                    (1 | zone) + (1 | fyear),
+                    (1 | fyear) + (1 | nestID),
                   data = nest, family = zero_inflated_binomial(), 
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_anest1)
+
+# Binomial:
+# year-level hierarchical intercept
+# nest- (observation-) level overdispersion residual
+# linear trend
+# fixed effects of beach, distance to HWL and distance to dune
+# ZI:
+# fixed effects of distance to HWL and distance to dune
+zib_anest2 <- brm(bf(emerged | trials(clutch) ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
+                       (1 | fyear) + (1 | nestID),
+                     zi ~ dist_hwl_std + dist_dune_std),
+                  data = nest, family = zero_inflated_binomial(), 
+                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(zib_anest2)
 
 #--------------------------------------------#
 # Only nests where a female was encountered  #
@@ -184,31 +203,47 @@ summary(zib_anest1)
 #  NOTE brms subset() not working)           #
 #--------------------------------------------#
 
+# Binomial:
 # zone-level hierarchical intercept
 # year-level hierarchical intercept
 # turtle-level hierarchical intercept
-zib_enest0 <- brm(emerged | trials(clutch) ~ (1 | zone) + (1 | fyear) + (1 | name),
+# nest- (observation-) level overdispersion residual
+zib_enest0 <- brm(emerged | trials(clutch) ~ (1 | zone) + (1 | fyear) + (1 | name) + (1 | nestID),
                   data = subset(nest, beach != "TEQ"), family = zero_inflated_binomial(), 
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_enest0)
 
-# zone-level hierarchical intercept
+# Binomial:
 # year-level hierarchical intercept
 # turtle-level hierarchical intercept
 # linear trend
 # fixed effects of beach, distance to HWL and distance to dune
 zib_enest1 <- brm(emerged | trials(clutch) ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
-                    neophyte + (1 | zone) + (1 | fyear) + (1 | name),
+                    neophyte + (1 | fyear) + (1 | name) + (1 | nestID),
                   data = subset(nest, beach != "TEQ"), family = zero_inflated_binomial(), 
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_enest1)
+
+# Binomial:
+# year-level hierarchical intercept
+# turtle-level hierarchical intercept
+# linear trend
+# fixed effects of beach, distance to HWL and distance to dune
+# ZI:
+# fixed effects of distance to HWL and distance to dune
+zib_enest2 <- brm(bf(emerged | trials(clutch) ~ year_ctr + beach + dist_hwl_std + dist_dune_std + 
+                    neophyte + (1 | fyear) + (1 | name) + (1 | nestID),
+                    zi ~ dist_hwl_std + dist_dune_std),
+                  data = subset(nest, beach != "TEQ"), family = zero_inflated_binomial(), 
+                  chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(zib_enest2)
 
 
 #================================================================
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "zib_enest1"
+mod_name <- "zib_enest2"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod, cores = 1)
 indx <- sample(nrow(yrep), 100)
@@ -260,12 +295,12 @@ ppc_stat(y, yrep[indx,], stat = function(x) mean(x == 0)) +
 #----------------------------------------------------------------
 
 # Normal QQ plot of year-level random effects
-ranef(mod)$fyear %>% rename(intercept = `(Intercept)`) %>% 
+as.data.frame(ranef(mod)$fyear) %>% rename(intercept = 1) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
   theme_bw() + ggtitle(deparse(form, width.cutoff = 500))
 
 # Normal QQ plot of turtle-level random effects
-ranef(mod)$name %>% rename(intercept = `(Intercept)`) %>% 
+as.data.frame(ranef(mod)$name) %>% rename(intercept = 1) %>% 
   ggplot(aes(sample = intercept)) + stat_qq(size = 2) + geom_qq_line() +
   theme_bw(base_size = 16) + 
   theme(panel.grid = element_blank(), plot.title = element_text(size = 11)) +
