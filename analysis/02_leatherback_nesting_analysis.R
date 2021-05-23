@@ -169,6 +169,7 @@ print(loo_compare(loo_neo)[,], 3)
 # nest- (observation-) level overdispersion residual
 zib_anest0 <- brm(emerged | trials(clutch) ~ (1 | zone) + (1 | fyear) + (1 | nestID),
                   data = nest, family = zero_inflated_binomial(), 
+                  # save_pars = save_pars(all = TRUE),
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_anest0)
 
@@ -196,6 +197,11 @@ zib_anest2 <- brm(bf(emerged | trials(clutch) ~ year_ctr + beach + dist_hwl_std 
                   data = nest, family = zero_inflated_binomial(), 
                   chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 summary(zib_anest2)
+
+# ## Model selection using loo
+# loo_nest <- loo(zib_anest0, zib_anest1, zib_anest2, moment_match = TRUE, compare = TRUE)
+# loo_nest
+# print(loo_compare(loo_nest)[,], 3)
 
 #--------------------------------------------#
 # Only nests where a female was encountered  #
