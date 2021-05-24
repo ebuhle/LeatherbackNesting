@@ -249,7 +249,7 @@ summary(zib_enest2)
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "zib_enest2"
+mod_name <- "zib_anest2"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod, cores = 1)
 indx <- sample(nrow(yrep), 100)
@@ -282,6 +282,9 @@ ppc_scatter_avg_grouped(y, yrep, group = mod$glmod$fr$fyear) +
 # PPD marginal histogram for binomial responses
 ppc_rootogram(y, yrep[1:5,]) +   
   ggtitle(deparse(form, width.cutoff = 500))
+
+ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppc_rootogram.png")),
+       width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 # PPD marginal histogram for binomial responses
 ppc_hist(y/rowSums(y), sweep(yrep[1:5,], 2, rowSums(y), "/"), binwidth = 0.05) + 

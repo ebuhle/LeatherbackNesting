@@ -224,17 +224,22 @@ ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
 
 # Probability of zero emergence vs distance from HWL by beach
 ## ADD binomial CIs to points
+mod_name <- "zib_anest2"
+mod <- get(mod_name)
+epred <- posterior_epred(mod)
+yrep <- sweep(posterior_predict(mod), 2, neophyte$count, "/")
+
 dev.new(width = 4, height = 8)
 
-nest %>% mutate(dhwl = cut(dist_hwl, 15)) %>% group_by(beach, dhwl) %>% 
+nest %>% mutate(dhwl = cut(dist_hwl, 5)) %>% group_by(dhwl) %>% 
   summarize(dist_hwl = mean(dist_hwl), n_zero = sum(emergence_rate = 0, na.rm = TRUE), n = n()) %>% 
   ungroup() %>% cbind(with(., Hmisc::binconf(x = n_zero, n = n, alpha = 0.1))) %>%
   ggplot(aes(x = dist_hwl, y = PointEst)) + 
   geom_point(size = 2.5, col = "steelblue4") + 
   geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
-  xlab("Distance from HWL") + ylab("P(emergence = 0)") +
-  facet_wrap(vars(beach), ncol = 1, scales = "free_y") +
-  theme(strip.background = element_rect(fill = "white"))
+  xlab("Distance from HWL") + ylab("Probability of nest failure") +
+  # facet_wrap(vars(beach), ncol = 1, scales = "free_y") +
+  theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white"))
 
 # Mean of nonzero emergence rates vs distance from HWL by beach
 ## ADD SEs to points (will be busy; use vertical segments only?)
