@@ -265,32 +265,62 @@ nest %>% mutate(ddune = cut(dist_dune, 10)) %>% group_by(ddune) %>%
               fill = "gray", alpha = 0.7) +
   geom_point(size = 2.5, col = "steelblue4") + 
   geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
-  coord_cartesian(ylim = c(0,0.5)) + xlab("Distance from toe of dune (m)") + ylab("") +
+  coord_cartesian(ylim = c(0,0.5)) + xlab("Distance from dune (m)") + ylab("") +
   theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white"))
 
 ggsave(filename=here("analysis", "results", "p_nest-failure_dist_hwl_dune.png"),
        width=10, height=5, units="in", dpi=300, type="cairo-png")
 
-# Mean of nonzero emergence rates vs distance from HWL by beach
-## ADD SEs to points (will be busy; use vertical segments only?)
-## Use probability y-axis
-dev.new(width = 4, height = 8)
+# Overall emergence rate vs distance from HWL and dune by beach
+mod_name <- "zib_anest2"
+mod <- get(mod_name)
 
-nest %>% filter(emergence_rate > 0) %>% 
-  ggplot(aes(x = dist_hwl, y = qlogis(emergence_rate))) + 
-  geom_point(size = 2, col = "steelblue4", alpha = 0.5) + 
-  facet_wrap(vars(beach), ncol = 1)
+condxns <- data.frame(beach = levels(nest$beach))
+ce_bin_epred <- conditional_effects(mod, effects = c("dist_hwl_std","dist_dune_std"),
+                                    conditions = condxns, method = "fitted")
+ce_bin_epred$dist_hwl_std <- ce_bin_epred$dist_hwl_std %>% 
+  mutate(dist_hwl = dist_hwl_std * attr(nest$dist_hwl_std, "scaled:scale") + 
+           attr(nest$dist_hwl_std, "scaled:center"), .after = dist_hwl_std)
+ce_bin_epred$dist_dune_std <- ce_bin_epred$dist_dune_std %>% 
+  mutate(dist_dune = dist_dune_std * attr(nest$dist_dune_std, "scaled:scale") + 
+           attr(nest$dist_dune_std, "scaled:center"), .after = dist_dune_std)
 
-# Mean of nonzero emergence rates vs distance from HWL by beach
-## ADD SEs to points (will be busy; use vertical segments only?)
-## Use probability y-axis
-dev.new(width = 4, height = 8)
+dev.new()
 
-nest %>% filter(emergence_rate > 0) %>% 
-  ggplot(aes(x = dist_dune, y = qlogis(emergence_rate))) + 
-  geom_point(size = 2, col = "steelblue4", alpha = 0.5) + 
-  facet_wrap(vars(beach), ncol = 1)
+nest %>% mutate(dhwl = cut(dist_hwl, 10)) %>% group_by(beach, dhwl) %>% 
+  summarize(dist_hwl = mean(dist_hwl), emerged = sum(emerged, na.rm = TRUE), 
+            clutch = sum(clutch, na.rm = TRUE)) %>%
+  ungroup() %>% cbind(with(., Hmisc::binconf(x = emerged, n = clutch, alpha = 0.1))) %>%
+  ggplot(aes(x = dist_hwl, y = PointEst)) + 
+  geom_line(aes(x = dist_hwl, y = estimate__), data = ce_bin_epred$dist_hwl_std,
+            inherit.aes = FALSE, lwd = 1, col = "darkgray") +
+  geom_ribbon(aes(x = dist_hwl, ymin = lower__, ymax = upper__), 
+              data = ce_bin_epred$dist_hwl_std, inherit.aes = FALSE, 
+              fill = "gray", alpha = 0.7) +
+  geom_point(size = 2.5, col = "steelblue4") + 
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
+  xlab("Distance from HWL (m)") + ylab("Emergence rate") +
+  facet_wrap(vars(beach), ncol = 1) +
+  theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white")) +
 
+  nest %>% mutate(ddune = cut(dist_dune, 10)) %>% group_by(beach, ddune) %>% 
+  summarize(dist_dune = mean(dist_dune), emerged = sum(emerged, na.rm = TRUE), 
+            clutch = sum(clutch, na.rm = TRUE)) %>%
+  ungroup() %>% cbind(with(., Hmisc::binconf(x = emerged, n = clutch, alpha = 0.1))) %>%
+  ggplot(aes(x = dist_dune, y = PointEst)) + 
+  geom_line(aes(x = dist_dune, y = estimate__), data = ce_bin_epred$dist_dune_std,
+            inherit.aes = FALSE, lwd = 1, col = "darkgray") +
+  geom_ribbon(aes(x = dist_dune, ymin = lower__, ymax = upper__), 
+              data = ce_bin_epred$dist_dune_std, inherit.aes = FALSE, 
+              fill = "gray", alpha = 0.7) +
+  geom_point(size = 2.5, col = "steelblue4") + 
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
+  xlab("Distance from dune (m)") + ylab("") +
+  facet_wrap(vars(beach), ncol = 1) +
+  theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white"))
+  
+ggsave(filename=here("analysis", "results", "p_emergence_dist_hwl_dune.png"),
+       width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 
 
