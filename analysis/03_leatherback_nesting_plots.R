@@ -222,24 +222,54 @@ ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
 # Hatchling emergence success
 #----------------------------------------------------------------
 
-# Probability of zero emergence vs distance from HWL by beach
-## ADD binomial CIs to points
+# Probability of nest failure vs distance from HWL and dune
+# note PPD not shown b/c credible interval always c(0,1)
 mod_name <- "zib_anest2"
 mod <- get(mod_name)
-epred <- posterior_epred(mod)
-yrep <- sweep(posterior_predict(mod), 2, neophyte$count, "/")
 
-dev.new(width = 4, height = 8)
+ce_zi_epred <- conditional_effects(mod, effects = c("dist_hwl_std","dist_dune_std"),
+                                   dpar = "zi", method = "fitted")
+ce_zi_epred$dist_hwl_std <- ce_zi_epred$dist_hwl_std %>% 
+  mutate(dist_hwl = dist_hwl_std * attr(nest$dist_hwl_std, "scaled:scale") + 
+           attr(nest$dist_hwl_std, "scaled:center"), .after = dist_hwl_std)
+ce_zi_epred$dist_dune_std <- ce_zi_epred$dist_dune_std %>% 
+  mutate(dist_dune = dist_dune_std * attr(nest$dist_dune_std, "scaled:scale") + 
+           attr(nest$dist_dune_std, "scaled:center"), .after = dist_dune_std)
 
-nest %>% mutate(dhwl = cut(dist_hwl, 5)) %>% group_by(dhwl) %>% 
-  summarize(dist_hwl = mean(dist_hwl), n_zero = sum(emergence_rate = 0, na.rm = TRUE), n = n()) %>% 
-  ungroup() %>% cbind(with(., Hmisc::binconf(x = n_zero, n = n, alpha = 0.1))) %>%
+dev.new(width = 10, height = 5)
+
+nest %>% mutate(dhwl = cut(dist_hwl, 10)) %>% group_by(dhwl) %>% 
+  summarize(dist_hwl = mean(dist_hwl), nz = sum(emergence_rate == 0, na.rm = TRUE), n = n()) %>%
+  ungroup() %>% cbind(with(., Hmisc::binconf(x = nz, n = n, alpha = 0.1))) %>%
   ggplot(aes(x = dist_hwl, y = PointEst)) + 
+  geom_line(aes(x = dist_hwl, y = estimate__), data = ce_zi_epred$dist_hwl_std,
+            inherit.aes = FALSE, lwd = 1, col = "darkgray") +
+  geom_ribbon(aes(x = dist_hwl, ymin = lower__, ymax = upper__), 
+              data = ce_zi_epred$dist_hwl_std, inherit.aes = FALSE, 
+              fill = "gray", alpha = 0.7) +
   geom_point(size = 2.5, col = "steelblue4") + 
   geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
-  xlab("Distance from HWL") + ylab("Probability of nest failure") +
-  # facet_wrap(vars(beach), ncol = 1, scales = "free_y") +
+  coord_cartesian(ylim = c(0,0.5)) + 
+  xlab("Distance from HWL (m)") + ylab("Probability of nest failure") +
+  theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white")) +
+  
+nest %>% mutate(ddune = cut(dist_dune, 10)) %>% group_by(ddune) %>% 
+  summarize(dist_dune = mean(dist_dune), nz = sum(emergence_rate == 0, na.rm = TRUE), 
+            n = n(), .groups = "drop") %>%
+  cbind(with(., Hmisc::binconf(x = nz, n = n, alpha = 0.1))) %>% 
+  ggplot(aes(x = dist_dune, y = PointEst)) + 
+  geom_line(aes(x = dist_dune, y = estimate__), data = ce_zi_epred$dist_dune_std,
+            inherit.aes = FALSE, lwd = 1, col = "darkgray") +
+  geom_ribbon(aes(x = dist_dune, ymin = lower__, ymax = upper__), 
+              data = ce_zi_epred$dist_dune_std, inherit.aes = FALSE, 
+              fill = "gray", alpha = 0.7) +
+  geom_point(size = 2.5, col = "steelblue4") + 
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
+  coord_cartesian(ylim = c(0,0.5)) + xlab("Distance from toe of dune (m)") + ylab("") +
   theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white"))
+
+ggsave(filename=here("analysis", "results", "p_nest-failure_dist_hwl_dune.png"),
+       width=10, height=5, units="in", dpi=300, type="cairo-png")
 
 # Mean of nonzero emergence rates vs distance from HWL by beach
 ## ADD SEs to points (will be busy; use vertical segments only?)
@@ -250,21 +280,6 @@ nest %>% filter(emergence_rate > 0) %>%
   ggplot(aes(x = dist_hwl, y = qlogis(emergence_rate))) + 
   geom_point(size = 2, col = "steelblue4", alpha = 0.5) + 
   facet_wrap(vars(beach), ncol = 1)
-
-# Probability of zero emergence vs. distance from dune by beach
-## ADD binomial CIs to points
-dev.new(width = 4, height = 8)
-
-nest %>% mutate(ddune = cut(dist_dune, 15)) %>% group_by(beach, ddune) %>% 
-  summarize(dist_dune = mean(dist_dune), n_zero = sum(emergence_rate == 0, na.rm = TRUE), 
-            n = n(), .groups = "drop") %>% 
-  cbind(with(., Hmisc::binconf(x = n_zero, n = n, alpha = 0.1))) %>% 
-  ggplot(aes(x = dist_dune, y = PointEst)) + 
-  geom_point(size = 2.5, col = "steelblue4") + 
-  geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
-  xlab("Distance from toe of dune") + ylab("P(emergence = 0)") +
-  facet_wrap(vars(beach), ncol = 1, scales = "free_y") +
-  theme(strip.background = element_rect(fill = "white"))
 
 # Mean of nonzero emergence rates vs distance from HWL by beach
 ## ADD SEs to points (will be busy; use vertical segments only?)
