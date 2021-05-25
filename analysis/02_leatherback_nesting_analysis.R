@@ -96,19 +96,19 @@ summary(lmer_doy2, pars = "varying", regex_pars = "igma")
 #----------------------------------------------------------------
 
 # turtle-level and year-level hierarchical intercepts
-lmer_sgr0 <- stan_lmer(sgr ~ (1 | name) + (1 | fyear), data = size, 
+lmer_lgr0 <- stan_lmer(lgr ~ (1 | name) + (1 | fyear), data = size, 
                           chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_sgr0, 3)
-summary(lmer_sgr0, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(lmer_sgr0, pars = "varying", regex_pars = "igma")
+print(lmer_lgr0, 3)
+summary(lmer_lgr0, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(lmer_lgr0, pars = "varying", regex_pars = "igma")
 
 # turtle-level and year-level hierarchical intercepts
 # initial size effect
-lmer_sgr1 <- stan_lmer(sgr ~ ccl_max0_std + (1 | name) + (1 | fyear), data = size, 
+lmer_lgr1 <- stan_lmer(lgr ~ ccl_max0_std + (1 | name) + (1 | fyear), data = size, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_sgr1, 3)
-summary(lmer_sgr1, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(lmer_sgr1, pars = "varying", regex_pars = "igma")
+print(lmer_lgr1, 3)
+summary(lmer_lgr1, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
+summary(lmer_lgr1, pars = "varying", regex_pars = "igma")
 
 # turtle-level and year-level hierarchical intercepts
 # initial size effect with turtle-varying slopes 
@@ -127,6 +127,17 @@ lmer_sgr3 <- stan_lmer(sgr ~ ccl_max0_std + year_ctr + (ccl_max0_std || name) + 
 print(lmer_sgr3, 3)
 summary(lmer_sgr3, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
 summary(lmer_sgr3, pars = "varying", regex_pars = "igma")
+
+# parabolic growth
+# turtle-level and year-level hierarchical intercepts
+brm_pgr0 <- brm(bf(log(ccl_max) ~ q * log(ccl_max0^(1/q) + r * dyear), 
+                   r ~ (1 | name) + (1 | fyear), q ~ 1, nl = TRUE),
+                data = size, 
+                prior = c(prior(normal(0,5), nlpar = "r"), 
+                          prior(normal(1,1), lb = 0, nlpar = "q")),
+                chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
+                control = list(adapt_delta = 0.9))
+summary(brm_pgr0)
 
 
 #----------------------------------------------------------------
@@ -249,7 +260,7 @@ summary(zib_enest2)
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "zib_anest2"
+mod_name <- "brm_pgr0"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod, cores = 1)
 indx <- sample(nrow(yrep), 100)
