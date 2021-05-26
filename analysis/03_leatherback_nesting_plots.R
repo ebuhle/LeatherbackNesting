@@ -19,7 +19,7 @@
 # Weather data
 #----------------------------------------------------------------
 
-# Annual climatologies of each variable
+## Annual climatologies of each variable
 dev.new(width = 10, height = 5)
 
 weather %>% group_by(date) %>% select(-dp_avg) %>% 
@@ -127,9 +127,8 @@ ggsave(filename=here("analysis", "results", "doy_female_joyplot.png"),
 
 
 #----------------------------------------------------------------
-# Somatic growth: 
-# change in max curved carapace length / year 
-# for turtles encountered multiple times
+# Somatic growth: change in max curved carapace length 
+#                 for turtles encountered multiple times
 #----------------------------------------------------------------
 
 ## Time series of body size for each female
@@ -145,44 +144,29 @@ turtle %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .gro
 ggsave(filename=here("analysis", "results", "ccl_max_timeseries.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
-## Specific growth rate as a function of initial length
-## Overlay data on lmer hyper-mean regression line and female-specific lines
-mod_name <- "lmer_sgr2"
+## von Bertalanffy growth curves
+## Overlay data on hyper-mean and female-specific predicted curves
+mod_name <- "brm_vb0"
 mod <- get(mod_name)
 
-dat <- data.frame(name = "0", fyear = "0", 
-                  ccl_max0_std = seq(1.1*min(mod$glmod$fr$ccl_max0_std),
-                                     1.1*max(mod$glmod$fr$ccl_max0_std),
-                                     length = 200))
-pred_hyper <- posterior_linpred(mod, newdata = dat, re.form = NA)
-pred_group <- posterior_linpred(mod, newdata = dat)
-ccl_ref <- size$ccl_max0[!is.na(size$sgr)]
-ccl_mean <- mean(ccl_ref)
-ccl_sd <- sd(ccl_ref)
-dat <- dat %>% 
-  mutate(ccl_max0 = ccl_max0_std * ccl_sd + ccl_mean, med_hyper = colMedians(pred_hyper), 
-         lb_hyper = colQuantiles(pred_hyper, probs = 0.025), 
-         ub_hyper = colQuantiles(pred_hyper, probs = 0.975), 
-         lb_group = colQuantiles(pred_group, probs = 0.025), 
-         ub_group = colQuantiles(pred_group, probs = 0.975))
+ce_vb_hyper <- conditional_effects(mod, effects = "dyear")
+ce_vb_ranef <- conditional_effects(mod, effects = "dyear", re_formula = NULL)
 
-dev.new(width = 7, height = 7)
+dev.new()
 
-mod$glmod$fr %>% cbind(ccl_max0 = ccl_ref) %>% 
-  ggplot(aes(x = ccl_max0, group = name)) +
-  geom_ribbon(aes(x = ccl_max0, ymin = lb_group, ymax = ub_group), data = dat, 
+size %>% 
+  ggplot(aes(x = dyear, y = ccl_max)) +
+  geom_ribbon(aes(x = dyear, ymin = lower__, ymax = upper__), data = ce_vb_ranef$dyear,
               fill = "lightgray", alpha = 0.5) +
-  geom_ribbon(aes(x = ccl_max0, ymin = lb_hyper, ymax = ub_hyper), data = dat, 
+  geom_ribbon(aes(x = dyear, ymin = lower__, ymax = upper__), data = ce_vb_hyper$dyear,
               fill = "gray", alpha = 0.7) +
-  geom_line(aes(x = ccl_max0, y = med_hyper), data = dat, col = "darkgray", lwd = 1) +
-  geom_line(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
-  geom_point(aes(y = sgr), col = "steelblue4", alpha = 0.5) +
-  scale_y_continuous(n.breaks = 7) + theme_bw(base_size = 16) + 
-  theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank()) +
-  xlab(bquote("Initial" ~ CCL[max] ~ "(cm)")) + 
-  ylab(bquote("Specific growth rate (" * decade^-1 * " )"))
+  geom_line(aes(x = dyear, y = estimate__), data = ce_vb_hyper$dyear, lwd = 1, col = "darkgray") +
+  geom_jitter(width = 0.2, height = 0, col = "steelblue4", alpha = 0.5) +
+  scale_x_continuous(breaks = unique(mod$data$dyear)) +
+  xlab("Years at large") + ylab(bquote(CCL[max] ~ "(cm)")) + theme_bw(base_size = 16) +
+  theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
 
-ggsave(filename=here("analysis", "results", "sgr_vs_init_ccl.png"),
+ggsave(filename=here("analysis", "results", "vonB_fitted_observed.png"),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
 
 
@@ -190,8 +174,8 @@ ggsave(filename=here("analysis", "results", "sgr_vs_init_ccl.png"),
 # Proportion of neophytes
 #----------------------------------------------------------------
 
-# Time series of proportion neophytes
-# Show data + CI and posterior expectation + PPD
+#$ Time series of proportion neophytes
+## Show data + CI and posterior expectation + PPD
 mod_name <- "glm_neo1"
 mod <- get(mod_name)
 epred <- posterior_epred(mod)
@@ -222,8 +206,8 @@ ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
 # Hatchling emergence success
 #----------------------------------------------------------------
 
-# Probability of nest failure vs distance from HWL and dune
-# note PPD not shown b/c credible interval always c(0,1)
+## Probability of nest failure vs distance from HWL and dune
+## note PPD not shown b/c credible interval always c(0,1)
 mod_name <- "zib_anest2"
 mod <- get(mod_name)
 
@@ -271,7 +255,7 @@ nest %>% mutate(ddune = cut(dist_dune, 10)) %>% group_by(ddune) %>%
 ggsave(filename=here("analysis", "results", "p_nest-failure_dist_hwl_dune.png"),
        width=10, height=5, units="in", dpi=300, type="cairo-png")
 
-# Overall emergence rate vs distance from HWL and dune by beach
+## Overall emergence rate vs distance from HWL and dune by beach
 mod_name <- "zib_anest2"
 mod <- get(mod_name)
 
