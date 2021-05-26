@@ -89,55 +89,20 @@ summary(lmer_doy2, pars = "varying", regex_pars = "igma")
 
 
 #----------------------------------------------------------------
-# Somatic growth: 
-# change in max curved carapace length / year 
-# for turtles encountered multiple times
-# Hierarchical linear / Gaussian models
+# Somatic growth: change in max curved carapace length 
+#                 for turtles encountered multiple times
+# Hierarchical von Bertalanffy models
 #----------------------------------------------------------------
 
-# turtle-level and year-level hierarchical intercepts
-lmer_lgr0 <- stan_lmer(lgr ~ (1 | name) + (1 | fyear), data = size, 
-                          chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_lgr0, 3)
-summary(lmer_lgr0, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(lmer_lgr0, pars = "varying", regex_pars = "igma")
-
-# turtle-level and year-level hierarchical intercepts
-# initial size effect
-lmer_lgr1 <- stan_lmer(lgr ~ ccl_max0_std + (1 | name) + (1 | fyear), data = size, 
-                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_lgr1, 3)
-summary(lmer_lgr1, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(lmer_lgr1, pars = "varying", regex_pars = "igma")
-
-# turtle-level and year-level hierarchical intercepts
-# initial size effect with turtle-varying slopes 
-# (diagonal random effects covariance matrix)
-lmer_sgr2 <- stan_lmer(sgr ~ ccl_max0_std + (ccl_max0_std || name) + (1 | fyear), data = size, 
-                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_sgr2, 3)
-summary(lmer_sgr2, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(lmer_sgr2, pars = "varying", regex_pars = "igma")
-
-# turtle-level and year-level hierarchical intercepts
-# initial size effect with turtle-varying slopes 
-# linear time trend
-lmer_sgr3 <- stan_lmer(sgr ~ ccl_max0_std + year_ctr + (ccl_max0_std || name) + (1 | fyear), data = size, 
-                       chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-print(lmer_sgr3, 3)
-summary(lmer_sgr3, pars = "alpha", probs = c(0.025, 0.5, 0.975), digits = 3)
-summary(lmer_sgr3, pars = "varying", regex_pars = "igma")
-
-# parabolic growth
-# turtle-level and year-level hierarchical intercepts
-brm_pgr0 <- brm(bf(log(ccl_max) ~ q * log(ccl_max0^(1/q) + r * dyear), 
-                   r ~ (1 | name) + (1 | fyear), q ~ 1, nl = TRUE),
-                data = size, 
-                prior = c(prior(normal(0,5), nlpar = "r"), 
-                          prior(normal(1,1), lb = 0, nlpar = "q")),
-                chains = getOption("mc.cores"), iter = 2000, warmup = 1000,
-                control = list(adapt_delta = 0.9))
-summary(brm_pgr0)
+# turtle-level and year-level random K
+# global Linf
+brm_vb0 <- brm(bf(ccl_max ~ ccl_max0 + (exp(logLinf) - ccl_max0) * (1 - inv_logit(logitK)^dyear), 
+                  logitK ~ (1 | name) + (1 | fyear), logLinf ~ 1, nl = TRUE),
+               data = size, 
+               prior = c(prior(logistic(0,1), nlpar = "logitK"), 
+                         prior(normal(5,5), nlpar = "logLinf")),
+               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(brm_vb0)
 
 
 #----------------------------------------------------------------
@@ -260,7 +225,7 @@ summary(zib_enest2)
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "brm_pgr0"
+mod_name <- "brm_vb0"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod, cores = 1)
 indx <- sample(nrow(yrep), 100)
