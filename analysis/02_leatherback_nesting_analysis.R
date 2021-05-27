@@ -62,6 +62,19 @@ if(file.exists(here("analysis", "results", "leatherback_nesting_models.RData")))
 #----------------------------------------------------------------
 
 # turtle-level and year-level hierarchical intercepts
+sn_doy0 <- brm(doy_encounter ~ (1 | name) + (1 | fyear), 
+               data = turtle, family = skew_normal,
+               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(sn_doy0)
+
+# turtle-level and year-level hierarchical intercepts
+sn_doy1 <- brm(bf(doy_encounter ~ (1 | name) + (1 | fyear), 
+                  alpha ~ (1 | fyear)),
+               data = turtle, family = skew_normal,
+               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(sn_doy1)
+
+# turtle-level and year-level hierarchical intercepts
 lmer_doy0 <- stan_lmer(doy_encounter ~ (1 | name) + (1 | fyear), data = turtle, 
                        chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
 print(lmer_doy0)
@@ -225,12 +238,13 @@ summary(zib_enest2)
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "brm_vb0"
+mod_name <- "lmer_doy0"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod, cores = 1)
 indx <- sample(nrow(yrep), 100)
 y <- switch(class(mod)[1], stanreg = as.matrix(rstanarm::get_y(mod))[,1], brmsfit = brms::get_y(mod))
 form <- switch(class(mod)[1], stanreg = formula(mod), brmsfit = formula(mod)[[1]])
+grp <- switch(class(mod)[1], stanreg = mod$glmod$fr$fyear, brmsfit = mod$data$fyear)
 
 #----------------------------------------------------------------
 # Continuous responses
@@ -243,12 +257,11 @@ ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppc_dens_overlay.
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
 # PPD marginal density grouped by year (takes a while)
-ppc_dens_overlay_grouped(y, yrep[indx,], group = mod$glmod$fr$year) +
+ppc_dens_overlay_grouped(y, yrep[indx,], group = grp) +
   ggtitle(deparse(form, width.cutoff = 500))
 
 # PPD scatterplots grouped by year
-ppc_scatter_avg_grouped(y, yrep, group = mod$glmod$fr$fyear) +
-  geom_abline(intercept = 0, slope = 1) + 
+ppc_scatter_avg_grouped(y, yrep, group = grp) + geom_abline(intercept = 0, slope = 1) + 
   ggtitle(deparse(form, width.cutoff = 500))
 
 #----------------------------------------------------------------

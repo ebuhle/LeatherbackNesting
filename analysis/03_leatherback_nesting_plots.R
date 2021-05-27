@@ -151,6 +151,11 @@ mod <- get(mod_name)
 
 ce_vb_hyper <- conditional_effects(mod, effects = "dyear")
 ce_vb_ranef <- conditional_effects(mod, effects = "dyear", re_formula = NULL)
+dat <- size %>% filter(!is.na(dyear)) %>% group_by(name, year) %>% 
+  summarize(ccl_max0 = ccl_max0, fyear = fyear, dyear = seq(0, dyear, length = 10)) %>%
+  ungroup()
+mr_vb <- posterior_epred(mod, newdata = dat)
+dat$ccl_max <- colMedians(mr_vb)
 
 dev.new()
 
@@ -161,9 +166,10 @@ size %>%
   geom_ribbon(aes(x = dyear, ymin = lower__, ymax = upper__), data = ce_vb_hyper$dyear,
               fill = "gray", alpha = 0.7) +
   geom_line(aes(x = dyear, y = estimate__), data = ce_vb_hyper$dyear, lwd = 1, col = "darkgray") +
+  geom_line(aes(x = dyear, y = ccl_max, group = name), data = dat, col = "darkgray") +
   geom_jitter(width = 0.2, height = 0, col = "steelblue4", alpha = 0.5) +
   scale_x_continuous(breaks = unique(mod$data$dyear)) +
-  xlab("Years at large") + ylab(bquote(CCL[max] ~ "(cm)")) + theme_bw(base_size = 16) +
+  xlab("Years since encounter") + ylab(bquote(CCL[max] ~ "(cm)")) + theme_bw(base_size = 16) +
   theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
 
 ggsave(filename=here("analysis", "results", "vonB_fitted_observed.png"),
