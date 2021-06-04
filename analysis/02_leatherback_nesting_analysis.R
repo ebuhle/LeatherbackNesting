@@ -61,18 +61,7 @@ if(file.exists(here("analysis", "results", "leatherback_nesting_models.RData")))
 # Breeding phenology: encounter date
 #----------------------------------------------------------------
 
-# turtle-level and year-level hierarchical intercepts
-sn_doy0 <- brm(doy_encounter ~ (1 | name) + (1 | fyear), 
-               data = turtle, family = skew_normal,
-               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-summary(sn_doy0)
-
-# turtle-level and year-level hierarchical intercepts
-sn_doy1 <- brm(bf(doy_encounter ~ (1 | name) + (1 | fyear), 
-                  alpha ~ (1 | fyear)),
-               data = turtle, family = skew_normal,
-               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
-summary(sn_doy1)
+## Linear mixed-effects models with rstanarm ##
 
 # turtle-level and year-level hierarchical intercepts
 lmer_doy0 <- stan_lmer(doy_encounter ~ (1 | name) + (1 | fyear), data = turtle, 
@@ -99,6 +88,28 @@ lmer_doy2 <- stan_lmer(doy_encounter ~ year_ctr + humid_std + ws_std + p_std + t
 print(lmer_doy2)
 summary(lmer_doy2, pars = c("alpha","beta"), probs = c(0.025, 0.5, 0.975))
 summary(lmer_doy2, pars = "varying", regex_pars = "igma")
+
+## Hierarchical skew-normal models with brms ##
+
+# turtle-level and year-level hierarchical intercepts
+sn_doy0 <- brm(doy_encounter ~ (1 | name) + (1 | fyear), 
+               data = turtle, family = skew_normal,
+               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(sn_doy0)
+
+# turtle-level and year-level hierarchical intercepts
+# year-level dispersion (sigma) and skew (alpha)
+sn_doy1 <- brm(bf(doy_encounter ~ (1 | name) + (1 | fyear), 
+                  alpha ~ (1 | fyear)),
+               data = turtle, family = skew_normal,
+               chains = getOption("mc.cores"), iter = 2000, warmup = 1000)
+summary(sn_doy1)
+
+## Model selection using loo
+loo_doy <- lapply(list(lmer_doy0 = lmer_doy0, lmer_doy1 = lmer_doy1, lmer_doy2 = lmer_doy2, 
+                       sn_doy0 = sn_doy0, sn_doy1 = sn_doy1), loo)
+loo_doy
+print(loo_compare(loo_doy)[,], 3)
 
 
 #----------------------------------------------------------------
@@ -238,7 +249,7 @@ summary(zib_enest2)
 # Diagnostic plots 
 #================================================================
 
-mod_name <- "lmer_doy0"
+mod_name <- "sn_doy1"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod, cores = 1)
 indx <- sample(nrow(yrep), 100)
