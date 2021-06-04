@@ -79,7 +79,7 @@ turtle %>%
   xlab("Year") + ylab("Encounter DOY") + 
   theme(legend.position = "top", legend.box.margin = margin(b = -12), panel.grid = element_blank())
 
-ggsave(filename=here("analysis", "results", "doy_all_encounters.png"),
+ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppd-half-violins.png")),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
 ## Time series of encounter DOY, female averages
@@ -96,7 +96,7 @@ ggsave(filename=here("analysis", "results", "doy_female_avg.png"),
 
 ## Joyplot of predicted DOY for each female in an average year
 ## Only include females encountered in >= 3 years (relatively informative for intercept)
-mod_name <- "lmer_doy2"
+mod_name <- "sn_doy1"
 mod <- get(mod_name)
 
 dat <- turtle %>% group_by(name) %>% 
@@ -117,7 +117,7 @@ cbind(dat, t(pred)) %>%
   geom_density_ridges(col = "lightgray", fill = "steelblue4", 
                       quantile_lines = TRUE, quantile_fun = mean) +
   scale_x_date(date_breaks = "2 weeks", date_minor_breaks = "1 week", date_labels = "%b %d",
-               limits = function(x) c(x[1] + 7, x[2] - 5)) +
+               limits = function(x) c(x[1] + 5, x[2] - 3)) +
   xlab("Encounter DOY") + 
   theme(axis.ticks.y = element_blank(), axis.title.y = element_blank(),
         axis.text.y = element_text(size = 11, margin = margin(r = -10)),
@@ -125,7 +125,7 @@ cbind(dat, t(pred)) %>%
         axis.line.x = element_line(size = 0.5), panel.grid.major.y = element_blank(),
         panel.grid.minor = element_blank())
 
-ggsave(filename=here("analysis", "results", "doy_female_joyplot.png"),
+ggsave(filename=here("analysis", "results", paste0(mod_name, "_female_joyplot.png")),
        width=7*0.9, height=10*0.9, units="in", dpi=300, type="cairo-png")
 
 
