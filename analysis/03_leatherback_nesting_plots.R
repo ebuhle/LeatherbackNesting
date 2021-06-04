@@ -55,23 +55,26 @@ ggsave(filename=here("analysis", "results", "climatology.png"),
 
 ## Time series of encounter DOY, all data
 ## Split violin plots show data distribution vs. PPD for each year
-mod_name <- "lmer_doy2"
+mod_name <- "sn_doy1"
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
 
 ppd <- as.data.frame(t(yrep[indx,])) %>% mutate(fyear = turtle$fyear) %>% 
   pivot_longer(-fyear, names_to = "iter", values_to = "doy_yrep") %>% 
-  mutate(date_encounter = as_date(doy_yrep), "%m-%d")
+  mutate(date_encounter = as_date(doy_yrep))
 
 dev.new(width = 7, height = 5)
 
 turtle %>% 
   ggplot(aes(x = fyear, y = as_date(format(date_encounter, "%m-%d"), format = "%m-%d"))) +
   geom_flat_violin(aes(fill = alpha("steelblue4", 0.5)), scale = "width", width = 0.8, trim = FALSE, col = NA) +
-  geom_flat_violin(data = ppd, aes(fill = "lightgray"), scale = "width", width = -0.8, col = NA) +
-  geom_jitter(aes(group = 1), width = 0.2, pch = 16, size = 1, col = "steelblue4", alpha = 0.5) + 
-  scale_y_date(date_breaks = "1 month", date_labels = "%b", expand = expansion(add = -30)) +
+  geom_flat_violin(data = ppd, aes(fill = "lightgray"), scale = "width", width = -0.8, trim = TRUE, col = NA) +
+  geom_point(aes(x = jitter(as.numeric(fyear), amount = 0.05), group = 1), position = position_nudge(x = -0.1),
+             pch = 16, size = 1, col = "steelblue4", alpha = 0.5) +
+  # ggdist::geom_dots(side = "left", pch = 16, col = "steelblue4", stackratio = 0.5) +
+  scale_y_date(date_breaks = "1 month", date_labels = "%b") + #, expand = expansion(add = c(-60,-180))) +
+  coord_cartesian(ylim = as_date(c("03-01","07-15"), format = "%m-%d")) +
   scale_fill_identity(name = "", guide = "legend", labels = c("observed", "predicted")) +
   xlab("Year") + ylab("Encounter DOY") + 
   theme(legend.position = "top", legend.box.margin = margin(b = -12), panel.grid = element_blank())
