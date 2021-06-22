@@ -4,7 +4,7 @@
 
 # Possible exploratory plots to show interesting patterns
 #
-# * Number of nests per year (shows rebound after decline from 2015-2017
+# * Number of nests per year (shows rebound after decline from 2015-2017)
 #
 # * Number of beaches visited by females
 # nest %>% group_by(name) %>% summarize(n_beach = length(unique(beach))) %>% 
@@ -22,6 +22,7 @@
 ## Annual climatologies of each variable
 dev.new(width = 10, height = 5)
 
+## @knitr climatology-timeseries
 weather %>% group_by(date) %>% select(-dp_avg) %>% 
   summarize(across(c(ends_with("avg"), ppt, sst), mean, na.rm = TRUE), .groups = "drop") %>% 
   pivot_longer(-date, names_to = "variable") %>% 
@@ -44,6 +45,7 @@ weather %>% group_by(date) %>% select(-dp_avg) %>%
   facet_wrap(vars(variable), ncol = 3, scales = "free_y", labeller = label_parsed) +
   theme(panel.grid.major.y = element_blank(), panel.grid.minor.y = element_blank(),
         strip.background = element_rect(fill = NA))
+## @knitr
 
 ggsave(filename=here("analysis", "results", "climatology.png"),
        width=10, height=5, units="in", dpi=300, type="cairo-png")
@@ -55,7 +57,10 @@ ggsave(filename=here("analysis", "results", "climatology.png"),
 
 ## Time series of encounter DOY, all data
 ## Split violin plots show data distribution vs. PPD for each year
+dev.new(width = 7, height = 5)
 mod_name <- "sn_doy1"
+
+## @knitr doy_ppd-half-violins
 mod <- get(mod_name)
 yrep <- posterior_predict(mod)
 indx <- sample(nrow(yrep), 100)
@@ -63,8 +68,6 @@ indx <- sample(nrow(yrep), 100)
 ppd <- as.data.frame(t(yrep[indx,])) %>% mutate(fyear = turtle$fyear) %>% 
   pivot_longer(-fyear, names_to = "iter", values_to = "doy_yrep") %>% 
   mutate(date_encounter = as_date(doy_yrep))
-
-dev.new(width = 7, height = 5)
 
 turtle %>% 
   ggplot(aes(x = fyear, y = as_date(format(date_encounter, "%m-%d"), format = "%m-%d"))) +
@@ -78,6 +81,7 @@ turtle %>%
   scale_fill_identity(name = "", guide = "legend", labels = c("observed", "predicted")) +
   xlab("Year") + ylab("Encounter DOY") + 
   theme(legend.position = "top", legend.box.margin = margin(b = -12), panel.grid = element_blank())
+## @knitr
 
 ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppd-half-violins.png")),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
@@ -85,18 +89,23 @@ ggsave(filename=here("analysis", "results", paste0(mod_name, "_ppd-half-violins.
 ## Time series of encounter DOY, female averages
 dev.new(width = 7, height = 5)
 
+## @knitr doy_female_avg
 turtle %>% group_by(year, name) %>% summarize(mean_date_encounter = mean(date_encounter), .groups = "drop") %>% 
   ggplot(aes(x = year, y = as_date(format(mean_date_encounter, "%m-%d"), format = "%m-%d"), group = name)) +
   geom_line(col = "steelblue4", alpha = 0.5) + scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Encounter DOY") + 
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
+## @knitr
 
 ggsave(filename=here("analysis", "results", "doy_female_avg.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
 ## Joyplot of predicted DOY for each female in an average year
 ## Only include females encountered in >= 3 years (relatively informative for intercept)
+dev.new(height = 10, width = 7)
 mod_name <- "sn_doy1"
+
+## @knitr doy_female_joyplot
 mod <- get(mod_name)
 
 dat <- turtle %>% group_by(name) %>% 
@@ -106,8 +115,6 @@ dat <- turtle %>% group_by(name) %>%
   filter(n_year > 3) %>% as.data.frame()
 
 pred <- posterior_linpred(mod, newdata = dat, re.form = ~ (1 | name))
-
-dev.new(height = 10, width = 7)
 
 cbind(dat, t(pred)) %>% 
   pivot_longer(-(name:sst_std), names_to = "iter", values_to = "doy_pred") %>% 
@@ -124,6 +131,7 @@ cbind(dat, t(pred)) %>%
         panel.border = element_blank(), panel.background = element_blank(),
         axis.line.x = element_line(size = 0.5), panel.grid.major.y = element_blank(),
         panel.grid.minor = element_blank())
+## @knitr
 
 ggsave(filename=here("analysis", "results", paste0(mod_name, "_female_joyplot.png")),
        width=7*0.9, height=10*0.9, units="in", dpi=300, type="cairo-png")
@@ -137,18 +145,23 @@ ggsave(filename=here("analysis", "results", paste0(mod_name, "_female_joyplot.pn
 ## Time series of body size for each female
 dev.new(width = 7, height = 5)
 
+## @knitr ccl_max_timeseries
 turtle %>% group_by(year, name) %>% summarize(mean_ccl_max = mean(ccl_max), .groups = "drop") %>% 
   ggplot(aes(x = year, y = mean_ccl_max, group = name)) +
   geom_line(col = "steelblue4", alpha = 0.7) + 
   scale_x_continuous(breaks = sort(unique(turtle$year))) +
   xlab("Year") + ylab("Max curved carapace length (cm)") +
   theme(panel.grid.minor = element_blank(), panel.grid.major.y = element_blank())
+## @knitr
 
 ggsave(filename=here("analysis", "results", "ccl_max_timeseries.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
 ## von Bertalanffy growth curves
 ## Overlay data on hyper-mean and female-specific predicted curves
+dev.new()
+
+## @knitr vonB_fitted_observed
 mod_name <- "brm_vb0"
 mod <- get(mod_name)
 
@@ -159,8 +172,6 @@ dat <- size %>% filter(!is.na(dyear)) %>% group_by(name, year) %>%
   ungroup()
 mr_vb <- posterior_epred(mod, newdata = dat)
 dat$ccl_max <- colMedians(mr_vb)
-
-dev.new()
 
 size %>% 
   ggplot(aes(x = dyear, y = ccl_max)) +
@@ -174,6 +185,7 @@ size %>%
   scale_x_continuous(breaks = unique(mod$data$dyear)) +
   xlab("Years since encounter") + ylab(bquote(CCL[max] ~ "(cm)")) + theme_bw(base_size = 16) +
   theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
+## @knitr
 
 ggsave(filename=here("analysis", "results", "vonB_fitted_observed.png"),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
@@ -183,14 +195,15 @@ ggsave(filename=here("analysis", "results", "vonB_fitted_observed.png"),
 # Proportion of neophytes
 #----------------------------------------------------------------
 
-#$ Time series of proportion neophytes
+## Time series of proportion neophytes
 ## Show data + CI and posterior expectation + PPD
+dev.new(width = 7, height = 5)
 mod_name <- "glm_neo1"
+
+## @knitr p_neophyte_timeseries
 mod <- get(mod_name)
 epred <- posterior_epred(mod)
 yrep <- sweep(posterior_predict(mod), 2, neophyte$count, "/")
-
-dev.new(width = 7, height = 5)
 
 neophyte %>% 
   ggplot(aes(x = year, y = p_neophyte)) +
@@ -206,7 +219,8 @@ neophyte %>%
   scale_x_continuous(breaks = neophyte$year) + scale_y_continuous(n.breaks = 8) +
   xlab("Year") + ylab("Proportion neophytes") +
   theme(panel.grid = element_blank())
-  
+## @knitr
+
 ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
        width=7, height=5, units="in", dpi=300, type="cairo-png")
 
@@ -217,7 +231,10 @@ ggsave(filename=here("analysis", "results", "p_neophyte_timeseries.png"),
 
 ## Probability of nest failure vs distance from HWL and dune
 ## note PPD not shown b/c credible interval always c(0,1)
+dev.new(width = 10, height = 5)
 mod_name <- "zib_anest2"
+
+## @knitr p_nest-failure_dist_hwl_dune
 mod <- get(mod_name)
 
 ce_zi_epred <- conditional_effects(mod, effects = c("dist_hwl_std","dist_dune_std"),
@@ -228,8 +245,6 @@ ce_zi_epred$dist_hwl_std <- ce_zi_epred$dist_hwl_std %>%
 ce_zi_epred$dist_dune_std <- ce_zi_epred$dist_dune_std %>% 
   mutate(dist_dune = dist_dune_std * attr(nest$dist_dune_std, "scaled:scale") + 
            attr(nest$dist_dune_std, "scaled:center"), .after = dist_dune_std)
-
-dev.new(width = 10, height = 5)
 
 nest %>% mutate(dhwl = cut(dist_hwl, 10)) %>% group_by(dhwl) %>% 
   summarize(dist_hwl = mean(dist_hwl), nz = sum(emergence_rate == 0, na.rm = TRUE), n = n()) %>%
@@ -260,12 +275,16 @@ nest %>% mutate(ddune = cut(dist_dune, 10)) %>% group_by(ddune) %>%
   geom_errorbar(aes(ymin = Lower, ymax = Upper), width = 0, col = "steelblue4") +
   coord_cartesian(ylim = c(0,0.5)) + xlab("Distance from dune (m)") + ylab("") +
   theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white"))
+## @knitr
 
 ggsave(filename=here("analysis", "results", "p_nest-failure_dist_hwl_dune.png"),
        width=10, height=5, units="in", dpi=300, type="cairo-png")
 
 ## Overall emergence rate vs distance from HWL and dune by beach
+dev.new()
 mod_name <- "zib_anest2"
+
+## @knitr p_emergence_dist_hwl_dune
 mod <- get(mod_name)
 
 condxns <- data.frame(beach = levels(nest$beach))
@@ -277,8 +296,6 @@ ce_bin_epred$dist_hwl_std <- ce_bin_epred$dist_hwl_std %>%
 ce_bin_epred$dist_dune_std <- ce_bin_epred$dist_dune_std %>% 
   mutate(dist_dune = dist_dune_std * attr(nest$dist_dune_std, "scaled:scale") + 
            attr(nest$dist_dune_std, "scaled:center"), .after = dist_dune_std)
-
-dev.new()
 
 nest %>% mutate(dhwl = cut(dist_hwl, 10)) %>% group_by(beach, dhwl) %>% 
   summarize(dist_hwl = mean(dist_hwl), emerged = sum(emerged, na.rm = TRUE), 
@@ -311,7 +328,8 @@ nest %>% mutate(dhwl = cut(dist_hwl, 10)) %>% group_by(beach, dhwl) %>%
   xlab("Distance from dune (m)") + ylab("") +
   facet_wrap(vars(beach), ncol = 1) +
   theme(panel.grid = element_blank(), strip.background = element_rect(fill = "white"))
-  
+## @knitr
+
 ggsave(filename=here("analysis", "results", "p_emergence_dist_hwl_dune.png"),
        width=7, height=7, units="in", dpi=300, type="cairo-png")
 
