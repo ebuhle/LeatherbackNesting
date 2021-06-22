@@ -1,0 +1,173 @@
+---
+title: "Analyses of Loggerhead Turtle Nest Monitoring Data"
+author: 
+  - Sarah Hoffman, Biomark Applied Biological Services
+  - Eric Buhle, Biomark Applied Biological Services and Northwest Fisheries Science Center
+  - Justin Perrault, Loggerhead Marinelife Center
+  - Sarah Hirsch, Loggerhead Marinelife Center
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  html_document:
+    df_print: paged
+    fig_caption: true
+    theme: cerulean
+    toc: true
+    toc_float: true
+---
+
+<style type="text/css">
+  body{
+  font-size: 11pt;
+}
+</style>
+
+```{r Rmd_setup, include=FALSE}
+knitr::opts_chunk$set(tidy = FALSE, highlight = TRUE, comment = NA, 
+                      dev = "png", dev.args = list(type = "cairo-png"), dpi = 300,
+                      out.width = "60%", fig.align = "center")
+
+options(width = 130)
+```
+
+```{r read_chunks, echo = FALSE, message=FALSE}
+library(here)
+knitr::read_chunk(here("analysis","02_leatherback_nesting_analysis.R"))
+knitr::read_chunk(here("analysis","03_leatherback_nesting_plots.R"))
+```
+
+```{r setup, echo=FALSE, message=FALSE}
+```
+
+## Introduction
+
+
+
+## Nesting Phenology
+
+Climatology plot
+
+```{r climatology-timeseries, echo=FALSE, message=FALSE, fig.width = 10, fig.height = 5, out.width="80%"}
+```
+
+Linear mixed-effects with turtle-level and year-level hierarchical intercepts
+
+```{r lmer_doy0-print, echo=FALSE}
+```
+
+Linear mixed-effects with turtle-level and year-level hierarchical intercepts and a linear time trend
+
+```{r lmer_doy1-print, echo=FALSE}
+```
+
+Linear mixed-effects with turtle-level and year-level hierarchical intercepts and a linear time trend and weather covariates
+
+```{r lmer_doy2-print, echo=FALSE}
+```
+
+Hierarchical skew-normal model with turtle-level and year-level intercepts
+
+```{r sn_doy0-summary, echo=FALSE}
+```
+
+Hierarchical skew-normal model with turtle-level and year-level dispersion and skew
+
+```{r sn_doy1-summary, echo=FALSE}
+```
+
+Model selection using LOO
+
+```{r doy-loo_compare, echo=FALSE}
+```
+
+Plot posterior predictive distribution from "full" skew-normal model and compare to data and empirical density for each year
+
+```{r sn_doy1_ppd-half-violins, echo=FALSE, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 5}
+mod_name <- "sn_doy1"
+<<doy_ppd-half-violins>>
+```
+
+Plot time series of encounter DOY for individual females
+
+```{r doy_female_avg, echo=FALSE, fig.width = 7, fig.height = 5}
+```
+
+Plot posterior distribution of the average encounter DOY in an average year (i.e., setting all other fixed and random effects to zero) for just those females that have been seen in at least 4 years (so their random effects are relatively well identified). The lines are the posterior means. They range from late April to late May, so not a ton of variation, but individual females do seem to have distinct seasonal modes.
+
+```{r doy_female_joyplot, echo=FALSE, message=FALSE, warning=FALSE, fig.height = 10, fig.width = 7}
+```
+
+## Somatic Growth
+
+Hierarchical von Bertalanffy model with turtle-level and year-level $K$ and global $L_{\infty}$
+
+```{r brm_vb0-summary, echo=FALSE}
+```
+
+Plot individual growth trajectories. A few females shrank considerably while others grew much faster than average.
+
+```{r ccl_max_timeseries, echo=FALSE, warning=FALSE, fig.width = 7, fig.height = 5}
+```
+
+Plot von Bertalanffy growth curves (hyper-mean and female-specific) with data overlay
+
+```{r vonB_fitted_observed, echo=FALSE, message=FALSE, warning=FALSE, fig.width = 7, fig.height = 5}
+```
+
+## Proportion of Neophytes
+
+Fit intercept-only binomial GLM 
+
+```{r glm_neo0-print, echo=FALSE}
+```
+
+Fit binomial GLM with time trend
+
+```{r glm_neo1-print, echo=FALSE}
+```
+
+Model comparison using LOO
+
+```{r neo-loo_compare, echo=FALSE}
+```
+
+Plot fitted relationship and PPD along with data and sample confidence intervals
+
+```{r glm_neo1-timeseries, echo=FALSE, fig.width = 7, fig.height = 5}
+mod_name <- "glm_neo1"
+<<p_neophyte_timeseries>>
+```
+
+## Emergence Success
+
+Zero-inflated binomial models [explain ZIB using example from full model]
+
+```{r zib_anest2-rootogram, echo=FALSE}
+mod_name <- "zib_anest2"
+<<ppd>>
+<<ppc_rootogram>>
+```
+
+Full model fitted to all nests. Binomial component: year-level hierarchical intercept, nest- (observation-) level overdispersion residual, linear time trend, fixed effects of beach, distance to HWL and distance to dune. Zero-inflated component: fixed effects of distance to HWL and distance to dune.
+
+```{r zib_anest2-summary, echo=FALSE}
+```
+
+Plot probability of nest failure vs. distance from HWL and dune
+
+```{r zib_anest2-p_nest-failure_dist_hwl_dune, echo=FALSE, message=FALSE, fig.width = 10, fig.height = 5, out.width="70%"}
+mod_name <- "zib_anest2"
+<<p_nest-failure_dist_hwl_dune>>
+```
+
+Plot overall emergence rate vs. distance from HWL and dune
+
+```{r zib_anest2-p_emergence_dist_hwl_dune, echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=7}
+<<p_emergence_dist_hwl_dune>>
+```
+
+Full model fitted to only nests associated with an encounter. Binomial component: year-level and turtle-level hierarchical intercepts, nest- (observation-) level overdispersion residual, linear time trend, fixed effects of beach, distance to HWL and distance to dune. Zero-inflated component: fixed effects of distance to HWL and distance to dune.
+
+```{r zib_enest2-summary, echo=FALSE}
+```
+
+
