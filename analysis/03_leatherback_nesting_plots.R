@@ -175,12 +175,12 @@ dat$ccl_max <- colMedians(mr_vb)
 
 size %>% 
   ggplot(aes(x = dyear, y = ccl_max)) +
-  geom_ribbon(aes(x = dyear, ymin = lower__, ymax = upper__), data = ce_vb_ranef$dyear,
-              fill = "lightgray", alpha = 0.5) +
+  # geom_ribbon(aes(x = dyear, ymin = lower__, ymax = upper__), data = ce_vb_ranef$dyear,
+  #             fill = "lightgray", alpha = 0.5) +
   geom_ribbon(aes(x = dyear, ymin = lower__, ymax = upper__), data = ce_vb_hyper$dyear,
               fill = "gray", alpha = 0.7) +
   geom_line(aes(x = dyear, y = estimate__), data = ce_vb_hyper$dyear, lwd = 1, col = "darkgray") +
-  geom_line(aes(x = dyear, y = ccl_max, group = name), data = dat, col = "darkgray") +
+  # geom_line(aes(x = dyear, y = ccl_max, group = name), data = dat, col = "darkgray") +
   geom_jitter(width = 0.2, height = 0, col = "steelblue4", alpha = 0.5) +
   scale_x_continuous(breaks = unique(mod$data$dyear)) +
   xlab("Years since encounter") + ylab(bquote(CCL[max] ~ "(cm)")) + theme_bw(base_size = 16) +

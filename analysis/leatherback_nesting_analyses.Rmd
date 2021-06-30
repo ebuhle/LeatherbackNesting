@@ -69,7 +69,7 @@ Hierarchical skew-normal model with turtle-level and year-level intercepts
 ```{r sn_doy0-summary, echo=FALSE}
 ```
 
-Hierarchical skew-normal model with turtle-level and year-level dispersion and skew
+Hierarchical skew-normal model with turtle-level intercept and year-level intercept, dispersion and skew
 
 ```{r sn_doy1-summary, echo=FALSE}
 ```
