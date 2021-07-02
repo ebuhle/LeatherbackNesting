@@ -8,7 +8,6 @@
 ## * Model daily encounter or nest counts as observations
 ## * Include neophyte vs. remigrant as predictor in phenology models
 ## * Zone random effects (which models? all?)
-## * Growth rate: linear instead of SGR
 ## * Emergence rate w/ encounter: include clutch sequence as predictor?
 
 ## Qs about survey protocol
